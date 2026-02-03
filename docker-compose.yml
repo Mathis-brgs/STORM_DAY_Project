@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # --- Base de données ---
   postgres:
@@ -26,24 +24,24 @@ services:
     volumes:
       - redis_data:/data
  
-  # --- Message Broker Cluster ---
+  # --- Message Broker Cluster (CORRIGÉ) ---
   nats-1:
     image: nats:latest
     container_name: storm-nats-1
     ports:
       - "4222:4222"
       - "8222:8222"
-    command: "--cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-2:6222,nats://nats-3:6222 --http_port 8222 --js"
+    command: "--name nats-1 --cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-2:6222,nats://nats-3:6222 --http_port 8222 --js"
 
   nats-2:
     image: nats:latest
     container_name: storm-nats-2
-    command: "--cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-1:6222,nats://nats-3:6222 --js"
+    command: "--name nats-2 --cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-1:6222,nats://nats-3:6222 --js"
 
   nats-3:
     image: nats:latest
     container_name: storm-nats-3
-    command: "--cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-1:6222,nats://nats-2:6222 --js"
+    command: "--name nats-3 --cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-1:6222,nats://nats-2:6222 --js"
 
 volumes:
   postgres_data:
