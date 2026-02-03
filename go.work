@@ -1,0 +1,10 @@
+go 1.25.6
+
+use (
+	./pkg
+	./services/auth
+	./services/gateway
+	./services/media
+	./services/message
+	./services/notification
+)
