@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # --- Base de données ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: storm-postgres
+    environment:
+      POSTGRES_DB: storm_db
+      POSTGRES_USER: storm_user
+      POSTGRES_PASSWORD: storm_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres -c max_connections=200 -c shared_buffers=256MB
+
+  # --- Cache & Sessions ---
+  redis:
+    image: redis:7-alpine
+    container_name: storm-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --save "" --appendonly no
+    volumes:
+      - redis_data:/data
+ 
+  # --- Message Broker Cluster ---
+  nats-1:
+    image: nats:latest
+    container_name: storm-nats-1
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: "--cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-2:6222,nats://nats-3:6222 --http_port 8222 --js"
+
+  nats-2:
+    image: nats:latest
+    container_name: storm-nats-2
+    command: "--cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-1:6222,nats://nats-3:6222 --js"
+
+  nats-3:
+    image: nats:latest
+    container_name: storm-nats-3
+    command: "--cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-1:6222,nats://nats-2:6222 --js"
+
+volumes:
+  postgres_data:
+  redis_data:
