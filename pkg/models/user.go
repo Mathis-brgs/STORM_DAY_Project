@@ -2,12 +2,12 @@ package models
 
 import (
 	"time"
-	"github.com/google/uuid"
+	"storm-project/pkg/id"	
 )
 
 // User définit l'utilisateur qui traverse tout le système
 type User struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	ID        id.ID `json:"id" gorm:"type:id;default:gen_random_uuid();primaryKey"`
 	Email     string    `json:"email" gorm:"uniqueIndex;not null"`
 	Username  string    `json:"username" gorm:"uniqueIndex;not null"`
 	Password  string    `json:"-"` // Jamais renvoyé en JSON !
