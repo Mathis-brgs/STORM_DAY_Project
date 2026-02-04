@@ -24,7 +24,7 @@ services:
     volumes:
       - redis_data:/data
  
-  # --- Message Broker Cluster (CORRIGÉ) ---
+  # --- Message Broker Cluster ---
   nats-1:
     image: nats:latest
     container_name: storm-nats-1
