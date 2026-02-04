@@ -1,9 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryColumn, Column, BeforeInsert } from 'typeorm';
+import { v7 as uuidv7 } from 'uuid';
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryColumn({ type: 'uuid' })
+  id: string;
 
   @Column({ type: 'varchar' })
   username: string;
@@ -16,4 +17,11 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   avatar_url: string;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = uuidv7();
+    }
+  }
 }

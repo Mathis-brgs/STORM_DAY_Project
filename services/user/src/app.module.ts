@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { User } from './user.entity';
-import { UsersGroup } from './users-group.entity';
+import { Jwt } from './jwt.entity';
 
 @Module({
   imports: [
@@ -14,7 +14,7 @@ import { UsersGroup } from './users-group.entity';
       username: process.env.DB_USER || 'storm',
       password: process.env.DB_PASSWORD || 'password',
       database: process.env.DB_NAME || 'storm_user_db',
-      entities: [User, UsersGroup],
+      entities: [User, Jwt],
       synchronize: true, // DEV only - creates tables automatically
     }),
   ],
