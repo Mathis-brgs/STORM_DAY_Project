@@ -1,48 +1,66 @@
 services:
-  # --- Base de données ---
-  postgres:
+  # --- DB User ---
+  postgres-user:
     image: postgres:15-alpine
-    container_name: storm-postgres
+    container_name: storm-postgres-user
     environment:
-      POSTGRES_DB: storm_db
-      POSTGRES_USER: storm_user
-      POSTGRES_PASSWORD: storm_password
+      POSTGRES_USER: storm
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: storm_user_db
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    command: >
-      postgres -c max_connections=200 -c shared_buffers=256MB
+      - postgres_user_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U storm -d storm_user_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # --- Cache & Sessions ---
+  # --- DB Message ---
+  postgres-chat:
+    image: postgres:15-alpine
+    container_name: storm-postgres-chat
+    environment:
+      POSTGRES_USER: storm
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: storm_message_db
+    ports:
+      - "5433:5432" 
+    volumes:
+      - postgres_message_data:/var/lib/postgresql/data
+
+  # --- Message Broker ---
+  nats:
+    image: nats:latest
+    container_name: storm-nats
+    ports:
+      - "4222:4222" # Port Client
+      - "8222:8222" # Dashboard Web 
+    command: "-js -m 8222" 
+
+  # --- Cache ---
   redis:
-    image: redis:7-alpine
+    image: redis:alpine
     container_name: storm-redis
     ports:
       - "6379:6379"
-    command: redis-server --save "" --appendonly no
-    volumes:
-      - redis_data:/data
- 
-  # --- Message Broker Cluster ---
-  nats-1:
-    image: nats:latest
-    container_name: storm-nats-1
+
+  # --- Object Storage ---
+  minio:
+    image: minio/minio
+    container_name: storm-minio
     ports:
-      - "4222:4222"
-      - "8222:8222"
-    command: "--name nats-1 --cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-2:6222,nats://nats-3:6222 --http_port 8222 --js"
-
-  nats-2:
-    image: nats:latest
-    container_name: storm-nats-2
-    command: "--name nats-2 --cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-1:6222,nats://nats-3:6222 --js"
-
-  nats-3:
-    image: nats:latest
-    container_name: storm-nats-3
-    command: "--name nats-3 --cluster_name STORM --cluster nats://0.0.0.0:6222 --routes nats://nats-1:6222,nats://nats-2:6222 --js"
+      - "9000:9000" # API
+      - "9001:9001" # Console Web
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
 
 volumes:
-  postgres_data:
-  redis_data:
+  postgres_user_data:
+  postgres_message_data:
+  minio_data:
