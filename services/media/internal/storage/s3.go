@@ -57,3 +57,15 @@ func (s *S3Client) UploadFile(ctx context.Context, key string, body io.Reader, c
 	}
 	return nil
 }
+
+// DeleteFile supprime un objet du bucket
+func (s *S3Client) DeleteFile(ctx context.Context, key string) error {
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return fmt.Errorf("erreur delete S3: %w", err)
+	}
+	return nil
+}
