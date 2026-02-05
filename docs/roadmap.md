@@ -6,7 +6,7 @@
 
 | Service | Langage/Framework | Base de données | Broker |
 |---------|-------------------|----------------|--------|
-| User Service (P1) | **NestJS / TypeScript** | PostgreSQL (TypeORM) | - |
+| User Service (P1) | **NestJS / TypeScript** | PostgreSQL (TypeORM) | NATS |
 | Gateway Service (P2) | **Go** (`net/http`) | - | NATS |
 | Message Service (P3) | **Go** | PostgreSQL | NATS |
 | Media Service (P4) | **Go** + AWS SDK v2 | MinIO (S3) | NATS |
@@ -23,10 +23,11 @@
 ### P1 (Mathis) — Auth dans User Service
 
 ```
-□ Installer deps : @nestjs/jwt, @nestjs/passport, passport-jwt, bcrypt, @types/bcrypt
+□ Installer deps : @nestjs/jwt, @nestjs/passport, passport-jwt, bcrypt, @types/bcrypt, @nestjs/microservices, nats
 □ Créer AuthModule + AuthService + AuthController
 □ POST /auth/register → hash password (bcrypt), créer user en DB
 □ POST /auth/login → vérifier credentials, générer JWT (access + refresh)
+□ Connexion NATS : écouter les events (user.validate, auth.validate)
 □ Tester avec curl ou Postman
 ```
 
@@ -57,6 +58,7 @@
 ✅ Documentation K8s (infra/k8s/README.md)
 ✅ .gitignore configuré
 □ Endpoints Auth : register, login, JWT tokens
+□ Connexion NATS (events auth.validate, user.online, etc.)
 □ Endpoints User : GET /users/:id, PUT /users/:id
 ```
 
@@ -65,6 +67,7 @@
 ```
 □ POST /auth/register (hash bcrypt, créer user)
 □ POST /auth/login (vérifier credentials, générer JWT access + refresh)
+□ Connexion NATS (@nestjs/microservices) : écouter auth.validate depuis Gateway
 □ Stockage refresh token (Redis ou entity JWT)
 □ Tests unitaires Auth
 ```
@@ -74,9 +77,10 @@
 ```
 □ GET /users/:id
 □ PUT /users/:id (update profil)
-□ POST /auth/validate (pour Gateway)
+□ NATS handler auth.validate (répondre au Gateway avec user info)
+□ NATS handler user.status (online/offline)
 □ POST /auth/refresh
-□ Intégration Auth + Gateway (aider P2)
+□ Intégration Auth + Gateway via NATS (aider P2)
 □ Demo 17h
 ```
 

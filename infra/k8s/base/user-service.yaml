@@ -36,6 +36,10 @@ spec:
                   key: POSTGRES_PASSWORD
             - name: DB_NAME
               value: user_db
+            - name: NATS_URL
+              value: nats://nats:4222
+            - name: JWT_SECRET
+              value: storm-secret-key
           readinessProbe:
             httpGet:
               path: /
