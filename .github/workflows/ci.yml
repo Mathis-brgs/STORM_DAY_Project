@@ -49,15 +49,15 @@ jobs:
         working-directory: pkg
 
       - name: Build gateway
-        run: go build ./cmd/...
+        run: go build -o gateway ./cmd/main.go
         working-directory: services/gateway
 
       - name: Build media
-        run: go build ./cmd/...
+        run: go build -o media ./cmd/main.go
         working-directory: services/media
 
       - name: Build message
-        run: go build ./cmd/...
+        run: go build -o message ./cmd/main.go
         working-directory: services/message
 
       # - name: Build notification
