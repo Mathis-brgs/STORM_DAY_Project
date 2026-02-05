@@ -38,8 +38,4 @@ func main() {
 	}
 
 	log.Println("✅ Succès ! Le fichier 'test/hello-world.txt' est sur MinIO.")
-
-	// Ici, ton service resterait normalement en écoute (HTTP/gRPC)
-	// Pour le test, on s'arrête là ou on bloque avec un select{}
-	select {}
 }
