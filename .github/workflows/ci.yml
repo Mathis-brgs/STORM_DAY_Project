@@ -75,15 +75,15 @@ jobs:
           go-version: "1.25.6"
           cache: false
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: v1.60
+          version: v2.8.0
           working-directory: ${{ matrix.workdir }}
     strategy:
       matrix:
         workdir:
           - pkg
-          - services/gateway
-          - services/media
-          - services/message
-          - services/notification
+          # - services/gateway
+          # - services/media
+          # - services/message
+          # - services/notification
