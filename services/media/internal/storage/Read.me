@@ -1,0 +1,18 @@
+`Commandes pour lancer  :`
+
+- `Démarrer MinIO :`
+    
+    `docker compose up -d minio`
+    
+- `Lancer le test d’upload :`
+    
+    `MINIO_ENDPOINT=localhost:9000 MINIO_ACCESS_KEY=admin MINIO_SECRET_KEY=password go run ./cmd/media-test`
+    
+- `(Optionnel) Console MinIO :`
+    
+    `http://localhost:9001 (admin / password)`
+    
+
+`À quoi ça sert ?`
+
+`Se connecter à S3 (ici MinIO) permet de **stocker**, **lire**, **lister** et **supprimer** des fichiers (objets) dans un bucket, comme sur AWS S3 en prod. Cela sert à gérer les médias (images/vidéos/documents) du projet.`
