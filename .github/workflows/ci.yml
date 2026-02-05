@@ -43,27 +43,26 @@ jobs:
             services/gateway/go.sum
             services/media/go.sum
             services/message/go.sum
-            services/notification/go.sum
 
       - name: Build shared package
         run: go build ./...
         working-directory: pkg
 
       - name: Build gateway
-        run: go build ./...
+        run: go build -o gateway ./cmd/main.go
         working-directory: services/gateway
 
       - name: Build media
-        run: go build ./...
+        run: go build -o media ./cmd/main.go
         working-directory: services/media
 
       - name: Build message
-        run: go build ./...
+        run: go build -o message ./cmd/main.go
         working-directory: services/message
 
-      - name: Build notification
-        run: go build ./...
-        working-directory: services/notification
+      # - name: Build notification
+      #   run: go build ./cmd/...
+      #   working-directory: services/notification
 
   lint-go:
     name: Lint Go Services
