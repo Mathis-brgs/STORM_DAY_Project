@@ -1,4 +1,5 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { MessagePattern } from '@nestjs/microservices';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -32,6 +33,15 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body('refresh_token') refreshToken: string) {
     return this.authService.refresh(refreshToken);
+  }
+
+  // POST /auth/logout
+  // Requiert un JWT valide
+  // Révoque tous les refresh tokens de l'utilisateur
+  @UseGuards(AuthGuard('jwt'))
+  @Post('logout')
+  logout(@Request() req: { user: { id: string } }) {
+    return this.authService.logout(req.user.id);
   }
 
   // ── NATS Handlers ─────────────────────────────────────

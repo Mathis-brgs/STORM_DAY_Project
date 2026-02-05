@@ -16,6 +16,10 @@
     {
       "key": "refresh_token",
       "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
     }
   ],
   "item": [
@@ -34,6 +38,7 @@
                   "    var json = pm.response.json();",
                   "    pm.collectionVariables.set('access_token', json.access_token);",
                   "    pm.collectionVariables.set('refresh_token', json.refresh_token);",
+                  "    if (json.user) pm.collectionVariables.set('user_id', json.user.id);",
                   "    console.log('Tokens saved!');",
                   "}"
                 ]
@@ -71,6 +76,7 @@
                   "    var json = pm.response.json();",
                   "    pm.collectionVariables.set('access_token', json.access_token);",
                   "    pm.collectionVariables.set('refresh_token', json.refresh_token);",
+                  "    if (json.user) pm.collectionVariables.set('user_id', json.user.id);",
                   "    console.log('Tokens saved!');",
                   "}"
                 ]
@@ -130,6 +136,80 @@
               "raw": "{{base_url}}/auth/refresh",
               "host": ["{{base_url}}"],
               "path": ["auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('access_token', '');",
+                  "    pm.collectionVariables.set('refresh_token', '');",
+                  "    console.log('Logged out, tokens cleared!');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"nouveau_nom\",\n  \"avatar_url\": \"https://example.com/avatar.png\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}"]
             }
           }
         }

@@ -89,6 +89,14 @@ export class AuthService {
     }
   }
 
+  async logout(userId: string) {
+    await this.jwtRepo.update(
+      { user_id: userId, revoked: false },
+      { revoked: true },
+    );
+    return { message: 'Déconnexion réussie' };
+  }
+
   async refresh(refreshToken: string) {
     const stored = await this.jwtRepo.findOne({
       where: { token: refreshToken, revoked: false },
