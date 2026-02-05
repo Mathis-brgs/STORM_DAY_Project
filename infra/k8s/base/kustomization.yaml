@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: storm
+
+resources:
+  - namespace.yaml
+  - secrets.yaml
+  # Infrastructure
+  - postgres-user.yaml
+  - postgres-message.yaml
+  - nats.yaml
+  - redis.yaml
+  - minio.yaml
+  # Services
+  - gateway-service.yaml
+  - user-service.yaml
+  - message-service.yaml
+  - media-service.yaml
