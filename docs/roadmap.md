@@ -6,7 +6,7 @@
 
 | Service | Langage/Framework | Base de données | Broker |
 |---------|-------------------|----------------|--------|
-| User Service (P1) | **NestJS / TypeScript** | PostgreSQL (TypeORM) | - |
+| User Service (P1) | **NestJS / TypeScript** | PostgreSQL (TypeORM) | NATS |
 | Gateway Service (P2) | **Go** (`net/http`) | - | NATS |
 | Message Service (P3) | **Go** | PostgreSQL | NATS |
 | Media Service (P4) | **Go** + AWS SDK v2 | MinIO (S3) | NATS |
@@ -23,10 +23,11 @@
 ### P1 (Mathis) — Auth dans User Service
 
 ```
-□ Installer deps : @nestjs/jwt, @nestjs/passport, passport-jwt, bcrypt, @types/bcrypt
+□ Installer deps : @nestjs/jwt, @nestjs/passport, passport-jwt, bcrypt, @types/bcrypt, @nestjs/microservices, nats
 □ Créer AuthModule + AuthService + AuthController
 □ POST /auth/register → hash password (bcrypt), créer user en DB
 □ POST /auth/login → vérifier credentials, générer JWT (access + refresh)
+□ Connexion NATS : écouter les events (user.validate, auth.validate)
 □ Tester avec curl ou Postman
 ```
 
@@ -56,27 +57,32 @@
 ✅ CI/CD GitHub Actions (build NestJS + Go, lint)
 ✅ Documentation K8s (infra/k8s/README.md)
 ✅ .gitignore configuré
-□ Endpoints Auth : register, login, JWT tokens
-□ Endpoints User : GET /users/:id, PUT /users/:id
+✅ Endpoints Auth : register, login, JWT tokens
+✅ Connexion NATS (transport configuré dans main.ts)
+✅ Endpoints User : GET /users/:id, PUT /users/:id
 ```
 
 **Jour 4 (Jeudi) — Auth Service**
 
 ```
-□ POST /auth/register (hash bcrypt, créer user)
-□ POST /auth/login (vérifier credentials, générer JWT access + refresh)
-□ Stockage refresh token (Redis ou entity JWT)
+✅ POST /auth/register (hash bcrypt, créer user)
+✅ POST /auth/login (vérifier credentials, générer JWT access + refresh)
+✅ Connexion NATS (@nestjs/microservices) : écouter auth.validate depuis Gateway
+✅ Stockage refresh token (entity JWT en DB)
+✅ POST /auth/logout (révoque tous les refresh tokens)
 □ Tests unitaires Auth
 ```
 
 **Jour 5 (Vendredi) — User endpoints + Intégration**
 
 ```
-□ GET /users/:id
-□ PUT /users/:id (update profil)
-□ POST /auth/validate (pour Gateway)
-□ POST /auth/refresh
-□ Intégration Auth + Gateway (aider P2)
+✅ GET /users/:id
+✅ PUT /users/:id (update profil)
+✅ NATS handler auth.validate (répondre au Gateway avec user info)
+□ NATS handler user.status (online/offline) — optionnel (à faire plus tard)
+✅ POST /auth/refresh
+✅ Intégration Auth via NATS (testé avec nats-box, prêt pour Gateway)
+□ Tests unitaires Auth
 □ Demo 17h
 ```
 
