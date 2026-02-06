@@ -1,5 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { Controller } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -7,41 +6,30 @@ import { LoginDto } from './dto/login.dto.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
-  // ── HTTP Endpoints ────────────────────────────────────
+  // ── NATS Endpoints ────────────────────────────────────
+  // (Remplacent les endpoints HTTP)
 
-  // POST /auth/register
-  // Body : { username, email, password }
-  // Retourne : { user, access_token, refresh_token }
-  @Post('register')
-  register(@Body() dto: RegisterDto) {
+  @MessagePattern('auth.register')
+  register(dto: RegisterDto) {
+    console.log('User Service received auth.register:', dto);
     return this.authService.register(dto);
   }
 
-  // POST /auth/login
-  // Body : { email, password }
-  // Retourne : { user, access_token, refresh_token }
-  @Post('login')
-  login(@Body() dto: LoginDto) {
+  @MessagePattern('auth.login')
+  login(dto: LoginDto) {
     return this.authService.login(dto);
   }
 
-  // POST /auth/refresh
-  // Body : { refresh_token }
-  // Retourne : { access_token, refresh_token }
-  @Post('refresh')
-  refresh(@Body('refresh_token') refreshToken: string) {
-    return this.authService.refresh(refreshToken);
+  @MessagePattern('auth.refresh')
+  refresh(data: { refresh_token: string }) {
+    return this.authService.refresh(data.refresh_token);
   }
 
-  // POST /auth/logout
-  // Requiert un JWT valide
-  // Révoque tous les refresh tokens de l'utilisateur
-  @UseGuards(AuthGuard('jwt'))
-  @Post('logout')
-  logout(@Request() req: { user: { id: string } }) {
-    return this.authService.logout(req.user.id);
+  @MessagePattern('auth.logout')
+  logout(data: { userId: string }) {
+    return this.authService.logout(data.userId);
   }
 
   // ── NATS Handlers ─────────────────────────────────────

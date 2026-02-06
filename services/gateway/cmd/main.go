@@ -1,6 +1,8 @@
 package main
 
 import (
+	"gateway/internal/modules/auth"
+	"gateway/internal/modules/user"
 	"gateway/internal/ws"
 	"log"
 	"net/http"
@@ -27,18 +29,31 @@ func main() {
 	hub := ws.NewHub()
 
 	handler := ws.NewHandler(hub, nc)
-
 	upgrader := gws.NewUpgrader(handler, nil)
+
+	authHandler := auth.NewHandler(nc)
+	userHandler := user.NewHandler(nc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	// Auth Routes
+	r.Post("/auth/register", authHandler.Register)
+	r.Post("/auth/login", authHandler.Login)
+	r.Post("/auth/refresh", authHandler.Refresh)
+	r.Post("/auth/logout", authHandler.Logout)
+
+	// User Routes
+	r.Get("/users/{id}", userHandler.Get)
+	r.Put("/users/{id}", userHandler.Update)
+
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("OK"))
 		if err != nil {
-			log.Printf("Erreur écriture: %v", err)
+			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+			return
 		}
 	})
 

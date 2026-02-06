@@ -28,7 +28,7 @@ spec:
               value: http://user-service:3000
           readinessProbe:
             httpGet:
-              path: /health
+              path: /
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 30
