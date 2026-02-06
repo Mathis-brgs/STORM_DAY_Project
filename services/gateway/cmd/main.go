@@ -4,16 +4,29 @@ import (
 	"gateway/internal/ws"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/lxzan/gws"
+	"github.com/nats-io/nats.go"
 )
 
 func main() {
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		natsURL = nats.DefaultURL
+	}
+	nc, err := nats.Connect(natsURL)
+	if err != nil {
+		log.Fatalf("Impossible de se connecter à NATS: %v", err)
+	}
+	defer nc.Close()
+	log.Printf("Connecté à NATS sur %s", natsURL)
+
 	hub := ws.NewHub()
 
-	handler := ws.NewHandler(hub)
+	handler := ws.NewHandler(hub, nc)
 
 	upgrader := gws.NewUpgrader(handler, nil)
 
