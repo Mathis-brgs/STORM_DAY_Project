@@ -29,7 +29,12 @@ func (h *Handler) OnClose(socket *gws.Conn, err error) {
 }
 
 func (h *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
-	defer message.Close()
+	defer func() {
+		err := message.Close()
+		if err != nil {
+			log.Printf("Erreur fermeture message : %v", err)
+		}
+	}()
 
 	var msg models.InputMessage
 	if err := json.Unmarshal(message.Bytes(), &msg); err != nil {
@@ -46,7 +51,10 @@ func (h *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 	case models.ActionMessage:
 		h.hub.BroadcastToRoom(msg.Room, message.Bytes())
 
-		_ = h.nats.Publish("NEW_MESSAGE", message.Bytes())
+		err := h.nats.Publish("NEW_MESSAGE", message.Bytes())
+		if err != nil {
+			log.Printf("Erreur publication sur NATS : %v", err)
+		}
 
 	default:
 		log.Printf("Action inconnue : %s", msg.Action)

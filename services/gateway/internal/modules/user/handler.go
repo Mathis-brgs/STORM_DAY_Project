@@ -30,7 +30,11 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		Data:    map[string]string{"id": id},
 		ID:      reqID,
 	}
-	payload, _ := json.Marshal(request)
+	payload, err := json.Marshal(request)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 
 	msg, err := h.nc.Request("user.get", payload, 2*time.Second)
 	if err != nil {
@@ -39,7 +43,11 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(msg.Data)
+	_, err = w.Write(msg.Data)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +72,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		Data:    map[string]string{"token": token},
 		ID:      reqID,
 	}
-	valPayload, _ := json.Marshal(valRequest)
+	valPayload, err := json.Marshal(valRequest)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 
 	msg, err := h.nc.Request("auth.validate", valPayload, 2*time.Second)
 	if err != nil {
@@ -112,7 +124,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		Data:    updatePayload,
 		ID:      reqID2,
 	}
-	payloadBytes, _ := json.Marshal(request)
+	payloadBytes, err := json.Marshal(request)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 
 	resp, err := h.nc.Request("user.update", payloadBytes, 2*time.Second)
 	if err != nil {
@@ -121,5 +137,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp.Data)
+	_, err = w.Write(resp.Data)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }

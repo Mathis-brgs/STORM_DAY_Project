@@ -48,7 +48,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Validate Token to get User ID
-	valPayload, _ := json.Marshal(map[string]string{"token": token})
+	valPayload, err := json.Marshal(map[string]string{"token": token})
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 	msg, err := h.nc.Request("auth.validate", valPayload, 2*time.Second)
 	if err != nil {
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
@@ -67,7 +71,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Call Logout with User ID
-	logoutPayload, _ := json.Marshal(map[string]string{"userId": valResult.User.ID})
+	logoutPayload, err := json.Marshal(map[string]string{"userId": valResult.User.ID})
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 	resp, err := h.nc.Request("auth.logout", logoutPayload, 2*time.Second)
 	if err != nil {
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
@@ -75,7 +83,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(resp.Data)
+	_, err = w.Write(resp.Data)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func proxyRequest(nc *nats.Conn, subject string, w http.ResponseWriter, r *http.Request) {
@@ -116,5 +128,9 @@ func proxyRequest(nc *nats.Conn, subject string, w http.ResponseWriter, r *http.
 	// Assuming User Service returns JSON error if something went wrong
 	// We just pipe the response for now
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(msg.Data)
+	_, err = w.Write(msg.Data)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }

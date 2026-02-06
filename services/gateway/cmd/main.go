@@ -48,9 +48,13 @@ func main() {
 	r.Get("/users/{id}", userHandler.Get)
 	r.Put("/users/{id}", userHandler.Update)
 
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, err := w.Write([]byte("OK"))
+		if err != nil {
+			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+			return
+		}
 	})
 
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
