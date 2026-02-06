@@ -82,7 +82,7 @@ jobs:
       matrix:
         workdir:
           - pkg
-          # - services/gateway
+          - services/gateway
           # - services/media
           # - services/message
           # - services/notification
