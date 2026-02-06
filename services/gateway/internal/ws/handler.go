@@ -29,9 +29,7 @@ func (h *Handler) OnClose(socket *gws.Conn, err error) {
 }
 
 func (h *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
-	if err := message.Close(); err != nil {
-		log.Printf("Erreur fermeture message: %v", err)
-	}
+	defer message.Close()
 
 	var msg models.InputMessage
 	if err := json.Unmarshal(message.Bytes(), &msg); err != nil {
