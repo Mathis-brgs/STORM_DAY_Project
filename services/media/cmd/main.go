@@ -12,7 +12,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-// j'ai modifier la fonction main pour ajouter la configuration de nats et minio via les variables d'environnement, par ce que je n'arrivais pas a lancer des tests K6
+// j'ai modifier la fonction main pour ajouter la configuration de nats et minio via les variables d'environnement, parce que je n'arrivais pas a lancer des tests K6
 func main() {
 	natsURL := os.Getenv("NATS_URL")
 	if natsURL == "" {
