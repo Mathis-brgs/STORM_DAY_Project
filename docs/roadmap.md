@@ -57,30 +57,32 @@
 ✅ CI/CD GitHub Actions (build NestJS + Go, lint)
 ✅ Documentation K8s (infra/k8s/README.md)
 ✅ .gitignore configuré
-□ Endpoints Auth : register, login, JWT tokens
-□ Connexion NATS (events auth.validate, user.online, etc.)
-□ Endpoints User : GET /users/:id, PUT /users/:id
+✅ Endpoints Auth : register, login, JWT tokens
+✅ Connexion NATS (transport configuré dans main.ts)
+✅ Endpoints User : GET /users/:id, PUT /users/:id
 ```
 
 **Jour 4 (Jeudi) — Auth Service**
 
 ```
-□ POST /auth/register (hash bcrypt, créer user)
-□ POST /auth/login (vérifier credentials, générer JWT access + refresh)
-□ Connexion NATS (@nestjs/microservices) : écouter auth.validate depuis Gateway
-□ Stockage refresh token (Redis ou entity JWT)
+✅ POST /auth/register (hash bcrypt, créer user)
+✅ POST /auth/login (vérifier credentials, générer JWT access + refresh)
+✅ Connexion NATS (@nestjs/microservices) : écouter auth.validate depuis Gateway
+✅ Stockage refresh token (entity JWT en DB)
+✅ POST /auth/logout (révoque tous les refresh tokens)
 □ Tests unitaires Auth
 ```
 
 **Jour 5 (Vendredi) — User endpoints + Intégration**
 
 ```
-□ GET /users/:id
-□ PUT /users/:id (update profil)
-□ NATS handler auth.validate (répondre au Gateway avec user info)
-□ NATS handler user.status (online/offline)
-□ POST /auth/refresh
-□ Intégration Auth + Gateway via NATS (aider P2)
+✅ GET /users/:id
+✅ PUT /users/:id (update profil)
+✅ NATS handler auth.validate (répondre au Gateway avec user info)
+□ NATS handler user.status (online/offline) — optionnel (à faire plus tard)
+✅ POST /auth/refresh
+✅ Intégration Auth via NATS (testé avec nats-box, prêt pour Gateway)
+□ Tests unitaires Auth
 □ Demo 17h
 ```
 

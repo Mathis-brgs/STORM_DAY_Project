@@ -51,7 +51,10 @@ export class AuthController {
   // Le Gateway envoie un JWT pour le valider
   // Retourne : { valid: true, user: {...} } ou { valid: false }
   @MessagePattern('auth.validate')
-  handleValidateToken(data: { token: string }) {
-    return this.authService.validateToken(data.token);
+  async handleValidateToken(data: { token: string }) {
+    console.log('[NATS] auth.validate called with:', data);
+    const result = await this.authService.validateToken(data.token);
+    console.log('[NATS] auth.validate result:', result);
+    return result;
   }
 }
