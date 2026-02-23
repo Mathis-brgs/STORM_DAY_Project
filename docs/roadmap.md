@@ -82,7 +82,7 @@
 □ NATS handler user.status (online/offline) — optionnel (à faire plus tard)
 ✅ POST /auth/refresh
 ✅ Intégration Auth via NATS (testé avec nats-box, prêt pour Gateway)
-□ Tests unitaires Auth
+✅ Tests unitaires Auth
 □ Demo 17h
 ```
 
@@ -93,24 +93,24 @@
 **Semaine 2 — AWS Infrastructure**
 
 ```
-□ Terraform : init + structure folders
-□ Terraform : VPC + Subnets
-□ Terraform : Security Groups
-□ Terraform : RDS PostgreSQL
-□ Terraform : ElastiCache Redis
-□ Terraform : S3 buckets (avatars + médias)
-□ Terraform : IAM roles
-□ Premier terraform apply sur AWS
+✅ Terraform : init + structure folders
+✅ Terraform : VPC + Subnets
+✅ Terraform : Security Groups
+✅ Terraform : RDS PostgreSQL
+✅ Terraform : ElastiCache Redis
+✅ Terraform : S3 buckets (avatars + médias)
+✅ Terraform : IAM roles
+⏳ Premier terraform apply sur AWS (en attente accès école)
 ```
 
 **Semaine 3 — CI/CD + Deploy AWS**
 
 ```
-□ CI/CD : Deploy sur AWS (GitHub Actions)
-□ Secrets K8s (DB passwords, JWT secret)
-□ Deploy Auth + User sur K8s AWS
-□ Vérifier services accessibles
-□ Budget AWS : Setup alertes (50%, 75%, 90%)
+✅ CI/CD : Deploy sur AWS (GitHub Actions) — workflow prêt
+✅ Secrets K8s (DB passwords, JWT secret) — template prêt
+✅ Budget AWS : Setup alertes (50%, 75%, 90%) — module Terraform prêt
+⏳ Deploy Auth + User sur K8s AWS (en attente accès école)
+⏳ Vérifier services accessibles (en attente accès école)
 ```
 
 ---
