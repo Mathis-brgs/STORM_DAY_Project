@@ -3,10 +3,10 @@ WORKDIR /app
 COPY go.mod go.sum* ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /app/message-service ./cmd/main.go
+RUN CGO_ENABLED=0 go build -o /app/message-service ./cmd/message-service/main.go
 
 FROM alpine:3.19
 RUN apk --no-cache add ca-certificates
-COPY --from=build /app/message-service /message-service
+COPY --from=build /app/message-service /app/message-service
 EXPOSE 8080
-CMD ["/message-service"]
+CMD ["/app/message-service"]
