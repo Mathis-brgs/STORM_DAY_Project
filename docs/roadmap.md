@@ -62,7 +62,7 @@
 
 **Jour 4 (Jeudi) — Auth Service**
 
-```
+``` fait 
 □ POST /auth/register (hash bcrypt, créer user)
 □ POST /auth/login (vérifier credentials, générer JWT access + refresh)
 □ Stockage refresh token (Redis ou entity JWT)
