@@ -4,7 +4,7 @@ NAMESPACE=storm
 GATEWAY_PORT=30080
 IMAGES=storm/user-service:latest storm/gateway-service:latest storm/message-service:latest storm/media-service:latest
 
-.PHONY: up down clean build deploy import restart status logs logs-media
+.PHONY: up down clean build deploy import restart status logs logs-media migrate-message migrate-user seed-message seed-user proto-message
 
 # Lance tout : cluster, build, import et déploiement
 up:
@@ -53,3 +53,23 @@ logs:
 # LOGS SPÉCIFIQUES MEDIA (Ta zone de test)
 logs-media:
 	kubectl logs -n $(NAMESPACE) -f -l app=media-service
+
+# --- Migrations & Seeds (dev local avec Docker Compose) ---
+
+# Migrations DB Message
+migrate-message:
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/001_create_tables.sql
+
+# Seed DB Message (groups + messages)
+seed-message:
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/002_seed_data.sql
+
+# Seed DB User (nécessite que le user-service ait créé les tables)
+seed-user:
+	docker exec -i storm-postgres-user psql -U storm -d storm_user_db < infra/seed/001_seed_users.sql
+
+# Régénère message.pb.go (copie dans api/v1 car protoc sort par go_package)
+proto-message:
+	cd services/message && docker run --rm -v $$(pwd):/workspace -w /workspace znly/protoc -I. --go_out=. --go_opt=paths=source_relative api/v1/message.proto
+	cp services/message/github.com/Mathis-brgs/storm-project/services/message/api/v1/message.pb.go services/message/api/v1/message.pb.go
+	rm -rf services/message/github.com

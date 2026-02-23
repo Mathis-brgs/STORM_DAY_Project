@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gateway/internal/api"
 	"gateway/internal/modules/auth"
 	"gateway/internal/modules/user"
 	"gateway/internal/ws"
@@ -27,7 +28,6 @@ func main() {
 	log.Printf("Connecté à NATS sur %s", natsURL)
 
 	hub := ws.NewHub()
-
 	handler := ws.NewHandler(hub, nc)
 	upgrader := gws.NewUpgrader(handler, nil)
 
@@ -47,6 +47,9 @@ func main() {
 	// User Routes
 	r.Get("/users/{id}", userHandler.Get)
 	r.Put("/users/{id}", userHandler.Update)
+
+	// Message (proxy vers message-service)
+	r.Post("/api/messages", api.NewMessagesHandler(nc))
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
