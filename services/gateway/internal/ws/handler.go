@@ -20,7 +20,14 @@ func NewHandler(hub *Hub, nats *nats.Conn) *Handler {
 }
 
 func (h *Handler) OnOpen(socket *gws.Conn) {
-	log.Println("Nouvelle connexion socket établie (en attente de Join)")
+	userId, _ := socket.Session().Load("userId")
+	username, _ := socket.Session().Load("username")
+	log.Printf("Nouvelle connexion socket établie : %s (%s)", username, userId)
+
+	// Rejoindre automatiquement une room privée pour l'utilisateur
+	if userId != nil {
+		h.hub.Join("user:"+userId.(string), socket)
+	}
 }
 func (h *Handler) OnClose(socket *gws.Conn, err error) {
 	if roomName, exist := socket.Session().Load("room"); exist {
@@ -42,6 +49,8 @@ func (h *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 		return
 	}
 
+	userId, _ := socket.Session().Load("userId")
+
 	switch msg.Action {
 
 	case models.ActionJoin:
@@ -49,9 +58,17 @@ func (h *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 		socket.Session().Store("room", msg.Room)
 
 	case models.ActionMessage:
-		h.hub.BroadcastToRoom(msg.Room, message.Bytes())
+		// Sécurité : on impose l'ID de l'utilisateur authentifié
+		if userId != nil {
+			msg.User = userId.(string)
+		}
 
-		err := h.nats.Publish("NEW_MESSAGE", message.Bytes())
+		// Re-marshal pour envoyer les données propres (avec l'user ID forcé)
+		finalPayload, _ := json.Marshal(msg)
+
+		h.hub.BroadcastToRoom(msg.Room, finalPayload)
+
+		err := h.nats.Publish("message.send", finalPayload)
 		if err != nil {
 			log.Printf("Erreur publication sur NATS : %v", err)
 		}

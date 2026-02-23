@@ -48,44 +48,22 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Validate Token to get User ID
-	// ✅ Wrapper NestJS requis : { pattern, data, id }
-	valRequest := struct {
-		Pattern string      `json:"pattern"`
-		Data    any `json:"data"`
-		ID      string      `json:"id"`
-	}{
-		Pattern: "auth.validate",
-		Data:    map[string]string{"token": token},
-		ID:      time.Now().String(),
-	}
-	valPayload, err := json.Marshal(valRequest)
+	valResult, err := ValidateToken(h.nc, token)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-	msg, err := h.nc.Request("auth.validate", valPayload, 2*time.Second)
-	if err != nil {
+		log.Printf("[Gateway] Validation Error: %v", err)
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-
-	var valResult struct {
-		Valid bool `json:"valid"`
-		User  struct {
-			ID string `json:"id"`
-		} `json:"user"`
-	}
-	if err := json.Unmarshal(msg.Data, &valResult); err != nil || !valResult.Valid {
+	if !valResult.Valid {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	// 2. Call Logout with User ID
-	// Wrapper NestJS requis : { pattern, data, id }
 	logoutRequest := struct {
-		Pattern string      `json:"pattern"`
-		Data    any `json:"data"`
-		ID      string      `json:"id"`
+		Pattern string            `json:"pattern"`
+		Data    map[string]string `json:"data"`
+		ID      string            `json:"id"`
 	}{
 		Pattern: "auth.logout",
 		Data:    map[string]string{"userId": valResult.User.ID},
@@ -121,9 +99,9 @@ func proxyRequest(nc *nats.Conn, subject string, w http.ResponseWriter, r *http.
 	// "id" is required for it to be treated as a Request-Response, otherwise it's an Event.
 	reqID := time.Now().String() // Simple unique ID
 	request := struct {
-		Pattern string      `json:"pattern"`
-		Data    any `json:"data"`
-		ID      string      `json:"id"`
+		Pattern string `json:"pattern"`
+		Data    any    `json:"data"`
+		ID      string `json:"id"`
 	}{
 		Pattern: subject,
 		Data:    body,
@@ -145,12 +123,16 @@ func proxyRequest(nc *nats.Conn, subject string, w http.ResponseWriter, r *http.
 	}
 	log.Printf("[Gateway] Received NATS response from %s: %s", subject, string(msg.Data))
 
-	// Assuming User Service returns JSON error if something went wrong
-	// We just pipe the response for now
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(msg.Data)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	// NestJS wraps responses in { "response": ..., "isDisposed": ..., "id": ... }
+	var wrapper struct {
+		Response json.RawMessage `json:"response"`
+	}
+	if err := json.Unmarshal(msg.Data, &wrapper); err == nil && len(wrapper.Response) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(wrapper.Response)
+	} else {
+		// Fallback if not wrapped or empty
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(msg.Data)
 	}
 }
