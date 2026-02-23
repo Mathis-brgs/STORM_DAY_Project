@@ -185,29 +185,29 @@
 ✅ Serveur HTTP basique (health + /)
 ✅ Dockerfile multi-stage
 ✅ Déployé sur K8s (NodePort 30080)
-□ Connexion WebSocket
-□ Intégration NATS
+✅ Connexion WebSocket
+✅ Intégration NATS
 □ Validation JWT
 ```
 
 **Jour 4 (Jeudi) — NATS + WebSocket**
 
 ```
-□ Install gorilla/websocket ou gws
-□ Connexion WebSocket basique (echo)
-□ Connexion NATS client
-□ Pub message sur NATS quand reçu de WebSocket
+✅ Install gorilla/websocket ou gws
+✅ Connexion WebSocket basique (echo)
+✅ Connexion NATS client
+✅ Pub message sur NATS quand reçu de WebSocket
 □ Tests connexion/déconnexion
 ```
 
 **Jour 5 (Vendredi) — JWT + Intégration**
 
 ```
-□ Valider JWT à la connexion WebSocket (appel Auth Service)
-□ Rejeter connexions non authentifiées
+✅ Valider JWT à la connexion WebSocket (appel Auth Service)
+✅ Rejeter connexions non authentifiées
 □ Heartbeat toutes les 30s
 □ Typing indicator (via NATS)
-□ Intégration complète avec Auth + Message
+✅ Intégration complète avec Auth + Message
 □ Demo 17h
 ```
 
