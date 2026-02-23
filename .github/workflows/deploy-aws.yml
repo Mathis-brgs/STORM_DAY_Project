@@ -1,0 +1,133 @@
+# ==============================================================================
+# CI/CD - Deploy sur AWS
+# ==============================================================================
+#
+# Ce workflow fait :
+# 1. Build les images Docker de chaque service
+# 2. Push les images sur AWS ECR (registry privé)
+# 3. Déploie sur EKS (Kubernetes AWS)
+#
+# Déclenché manuellement ou sur push sur main
+#
+# ==============================================================================
+
+name: Deploy to AWS
+
+on:
+  # Déploiement manuel depuis GitHub (bouton "Run workflow")
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environnement cible"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+
+  # Auto-deploy quand on push sur main
+  push:
+    branches: [main]
+
+# Permissions pour OIDC (connexion AWS sans access keys stockées)
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-west-3
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-3.amazonaws.com
+  EKS_CLUSTER: storm-cluster
+
+jobs:
+  # ============================================================================
+  # Job 1 : Build & Push les images Docker
+  # ============================================================================
+  build-and-push:
+    name: Build & Push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - user
+          - gateway
+          - media
+          - message
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Connexion à AWS via OIDC (plus sécurisé que des access keys)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Login au registry Docker privé AWS (ECR)
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Build et push l'image Docker
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: services/${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/storm-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/storm-${{ matrix.service }}:latest
+
+  # ============================================================================
+  # Job 2 : Deploy sur EKS
+  # ============================================================================
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Configurer kubectl pour se connecter à EKS
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+
+      # Mettre à jour les images dans les deployments K8s
+      - name: Deploy services
+        run: |
+          SERVICES="user gateway media message"
+          for SERVICE in $SERVICES; do
+            kubectl set image deployment/${SERVICE}-service \
+              ${SERVICE}-service=${{ env.ECR_REGISTRY }}/storm-${SERVICE}:${{ github.sha }} \
+              -n storm
+          done
+
+      # Attendre que tous les pods soient prêts
+      - name: Wait for rollout
+        run: |
+          SERVICES="user gateway media message"
+          for SERVICE in $SERVICES; do
+            echo "Waiting for ${SERVICE}-service..."
+            kubectl rollout status deployment/${SERVICE}-service -n storm --timeout=120s
+          done
+
+      # Vérifier le statut
+      - name: Verify deployment
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n storm
+          echo ""
+          echo "=== Services ==="
+          kubectl get svc -n storm

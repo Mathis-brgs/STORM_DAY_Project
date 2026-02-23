@@ -1,0 +1,18 @@
+# ==============================================================================
+# EXEMPLE DE FICHIER terraform.tfvars
+# ==============================================================================
+#
+# Copie ce fichier en terraform.tfvars et remplis les valeurs.
+# NE JAMAIS COMMIT terraform.tfvars (contient des secrets) !
+#
+# cp terraform.tfvars.example terraform.tfvars
+#
+# ==============================================================================
+
+# Mot de passe PostgreSQL (minimum 8 caractères)
+db_password = "ChangeMe123!"
+
+# Tu peux aussi surcharger les valeurs par défaut :
+# project_name = "storm"
+# environment  = "dev"
+# aws_region   = "eu-west-3"

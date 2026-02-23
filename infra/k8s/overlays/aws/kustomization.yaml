@@ -1,0 +1,85 @@
+# ==============================================================================
+# KUSTOMIZE OVERLAY - AWS
+# ==============================================================================
+#
+# Cet overlay surcharge la config de base pour AWS.
+# Il remplace les services locaux (postgres, redis) par les services AWS (RDS, ElastiCache).
+#
+# Usage :
+#   kubectl apply -k infra/k8s/overlays/aws
+#
+# ==============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: storm
+
+# On hérite de la config de base
+resources:
+  - ../../base/namespace.yaml
+  - ../../base/nats.yaml         # NATS reste dans le cluster
+  - ../../base/gateway-service.yaml
+  - ../../base/user-service.yaml
+  - ../../base/message-service.yaml
+  - ../../base/media-service.yaml
+  - secrets-aws.yaml
+
+# On ne déploie PAS postgres, redis, minio en AWS
+# → On utilise RDS, ElastiCache, S3 à la place
+
+# Surcharger les images avec celles d'ECR
+images:
+  - name: storm/user-service
+    newName: ${AWS_ACCOUNT_ID}.dkr.ecr.eu-west-3.amazonaws.com/storm-user
+    newTag: latest
+  - name: storm/gateway-service
+    newName: ${AWS_ACCOUNT_ID}.dkr.ecr.eu-west-3.amazonaws.com/storm-gateway
+    newTag: latest
+  - name: storm/media-service
+    newName: ${AWS_ACCOUNT_ID}.dkr.ecr.eu-west-3.amazonaws.com/storm-media
+    newTag: latest
+  - name: storm/message-service
+    newName: ${AWS_ACCOUNT_ID}.dkr.ecr.eu-west-3.amazonaws.com/storm-message
+    newTag: latest
+
+# Patcher le user-service pour utiliser RDS au lieu de postgres local
+patches:
+  - target:
+      kind: Deployment
+      name: user-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: DB_HOST
+            valueFrom:
+              secretKeyRef:
+                name: aws-credentials
+                key: RDS_HOST
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: aws-credentials
+                key: RDS_USERNAME
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: aws-credentials
+                key: RDS_PASSWORD
+          - name: DB_NAME
+            value: storm
+          - name: NATS_URL
+            value: nats://nats:4222
+          - name: JWT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: aws-credentials
+                key: JWT_SECRET
+          - name: REDIS_URL
+            valueFrom:
+              secretKeyRef:
+                name: aws-credentials
+                key: REDIS_URL

@@ -1,6 +1,6 @@
 # Roadmaps Individuelles STORM
 
-> **Mise à jour : Jeudi Semaine 1** — Retard pris à cause des cours théoriques. L'infra K8s locale, la CI, et les bases des services sont en place. Les endpoints métier restent à implémenter.
+> **Mise à jour : Semaine 2** — Migration cloud : AWS → Azure (décision école). L'infra K8s locale, la CI, et les bases des services sont en place. Les endpoints métier sont implémentés.
 
 ## Stack Technique
 
@@ -9,11 +9,12 @@
 | User Service (P1) | **NestJS / TypeScript** | PostgreSQL (TypeORM) | NATS |
 | Gateway Service (P2) | **Go** (`net/http`) | - | NATS |
 | Message Service (P3) | **Go** | PostgreSQL | NATS |
-| Media Service (P4) | **Go** + AWS SDK v2 | MinIO (S3) | NATS |
+| Media Service (P4) | **Go** + Azure SDK | MinIO / Azure Blob | NATS |
 | Notification Service (P4) | **Go** | Redis | NATS |
 
 **Infra locale** : k3d (K3s in Docker), Kustomize, Makefile
-**CI/CD** : GitHub Actions (build Go + NestJS, lint)
+**Cloud** : Azure (AKS, Azure Database for PostgreSQL, Azure Cache for Redis, Azure Blob Storage, ACR)
+**CI/CD** : GitHub Actions (build Go + NestJS, lint, deploy Azure)
 **Monitoring** : Prometheus + Grafana (à venir)
 
 ---
@@ -42,7 +43,7 @@
 
 ---
 
-## P1 - User Service (NestJS) + Auth + Lead Infra AWS
+## P1 - User Service (NestJS) + Auth + Lead Infra Azure
 
 ### SEMAINE 1 (COURS)
 
@@ -82,7 +83,7 @@
 □ NATS handler user.status (online/offline) — optionnel (à faire plus tard)
 ✅ POST /auth/refresh
 ✅ Intégration Auth via NATS (testé avec nats-box, prêt pour Gateway)
-□ Tests unitaires Auth
+✅ Tests unitaires Auth
 □ Demo 17h
 ```
 
@@ -90,27 +91,23 @@
 
 ### SEMAINES 2-3 (ENTREPRISE)
 
-**Semaine 2 — AWS Infrastructure**
+**Semaine 2 — Azure Infrastructure (migration depuis AWS)**
 
 ```
-□ Terraform : init + structure folders
-□ Terraform : VPC + Subnets
-□ Terraform : Security Groups
-□ Terraform : RDS PostgreSQL
-□ Terraform : ElastiCache Redis
-□ Terraform : S3 buckets (avatars + médias)
-□ Terraform : IAM roles
-□ Premier terraform apply sur AWS
+✅ Terraform : init + structure folders (modules AWS écrits)
+⏳ Migration Terraform : provider azurerm (VNet, NSG, PostgreSQL Flexible, Redis, Blob Storage, Managed Identity)
+⏳ Terraform : modules Azure à réécrire
+⏳ Premier tofu apply sur Azure (en attente accès école)
 ```
 
-**Semaine 3 — CI/CD + Deploy AWS**
+**Semaine 3 — CI/CD + Deploy Azure**
 
 ```
-□ CI/CD : Deploy sur AWS (GitHub Actions)
-□ Secrets K8s (DB passwords, JWT secret)
-□ Deploy Auth + User sur K8s AWS
-□ Vérifier services accessibles
-□ Budget AWS : Setup alertes (50%, 75%, 90%)
+⏳ CI/CD : Deploy sur Azure (GitHub Actions) — ECR→ACR, EKS→AKS
+⏳ Secrets K8s Azure (DB passwords, JWT secret, Blob Storage)
+⏳ Budget Azure : alertes de coûts (50%, 75%, 90%)
+⏳ Deploy Auth + User sur AKS (en attente accès école)
+⏳ Vérifier services accessibles (en attente accès école)
 ```
 
 ---
@@ -122,8 +119,8 @@
 ```
 □ Auth/User : Optimisations performance
 □ Auth/User : Tests coverage >80%
-□ Terraform : Outputs propres
-□ Documentation Terraform (README)
+□ Terraform Azure : Outputs propres
+□ Documentation Terraform Azure (README)
 □ Load testing Auth (avec P4)
 □ Profiling endpoints lents
 □ Fix bottlenecks identifiés
@@ -136,9 +133,9 @@
 **Stabilisation**
 
 ```
-□ Monitoring coûts AWS
-□ Optimisation ressources (downsize si possible)
-□ Backup strategy RDS
+□ Monitoring coûts Azure (Cost Management)
+□ Optimisation ressources Azure (downsize si possible)
+□ Backup strategy PostgreSQL Azure
 □ Tests avancés Auth/User
 □ Documentation API complète (OpenAPI)
 □ Fix bugs mineurs
@@ -152,10 +149,10 @@
 
 ```
 □ Tests de charge Auth (validation JWT haute fréquence)
-□ Autoscaling test Auth pods
+□ Autoscaling test Auth pods (AKS HPA)
 □ Chaos : Kill Auth pods → mesurer impact
 □ Fix recovery time si trop lent
-□ Documentation finale Terraform
+□ Documentation finale Terraform Azure
 □ Mercredi : STORM DAY test complet
 ```
 
@@ -168,8 +165,8 @@
 ```
 □ Post-mortem STORM DAY
 □ Corrections finales
-□ Architecture diagrams (Terraform)
-□ README déploiement
+□ Architecture diagrams (Terraform Azure)
+□ README déploiement Azure
 □ Slides présentation (partie infra)
 □ Répétition soutenance
 ```
@@ -445,20 +442,20 @@
 
 ### SEMAINES 2-3 (ENTREPRISE)
 
-**Semaine 2 — Kubernetes sur AWS**
+**Semaine 2 — Kubernetes sur Azure**
 
 ```
-□ Terraform : EKS cluster (avec aide P1)
+□ Terraform : AKS cluster (avec aide P1)
 □ K8s deployments : tous les services
-□ K8s services (ClusterIP, LoadBalancer)
+□ K8s services (ClusterIP, LoadBalancer Azure)
 □ NATS cluster (Helm install)
-□ Test deploy sur EKS
+□ Test deploy sur AKS
 ```
 
 **Semaine 3 — K8s Avancé + Notification**
 
 ```
-□ Terraform : ALB Ingress
+□ Terraform : Azure Application Gateway / Ingress
 □ K8s : ConfigMaps, Secrets
 □ K8s : Resource limits (CPU, RAM)
 □ Autoscaling HPA (tous services)
@@ -490,10 +487,10 @@
 **Optimisations Infra**
 
 ```
-□ Autoscaling tuning (metrics, thresholds)
-□ Spot instances pour économiser
-□ Multi-AZ configuration
-□ Backup strategy
+□ Autoscaling tuning AKS (metrics, thresholds)
+□ Spot/Preemptible nodes Azure pour économiser
+□ Multi-zone configuration Azure
+□ Backup strategy Azure
 □ Disaster recovery plan
 □ Load testing 30K → 50K
 ```
@@ -547,15 +544,15 @@ P4 : Media S3/MinIO + Makefile + cmd stubs ⏳
 → Livrable : Chat basique qui marche en local (k3d)
 ```
 
-### SEMAINES 2-3 : AWS Deploy
+### SEMAINES 2-3 : Azure Deploy
 
 ```
-P1 : Terraform AWS (VPC, RDS, ElastiCache, S3)
+P1 : Terraform Azure (VNet, PostgreSQL Flexible, Redis, Blob Storage)
 P2 : Code review + optimisations
 P3 : Features avancées messages
-P4 : EKS + NATS cluster + K8s manifests
+P4 : AKS + NATS cluster + K8s manifests
 
-→ Livrable : Sur AWS, 5K users OK
+→ Livrable : Sur Azure, 5K users OK
 ```
 
 ### SEMAINE 4 : Scale 20K
@@ -570,7 +567,7 @@ Tous : Load testing vendredi
 ### SEMAINES 5-6 : Scale 50K
 
 ```
-P1 : Infra stable
+P1 : Infra Azure stable
 P2 : Gateway optimisé
 P3 : DB tuning
 P4 : Monitoring complet

@@ -60,7 +60,24 @@ services:
     volumes:
       - minio_data:/data
 
+  # --- AWS Local (LocalStack) ---
+  # Simule AWS en local pour tester Terraform gratuitement
+  localstack:
+    image: localstack/localstack
+    container_name: storm-localstack
+    ports:
+      - "4566:4566"           # API Gateway unifié (tous les services AWS)
+      - "4510-4559:4510-4559" # Ports additionnels
+    environment:
+      - SERVICES=s3,iam,sts,ec2,rds,elasticache,secretsmanager
+      - DEBUG=0
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+
 volumes:
   postgres_user_data:
   postgres_message_data:
   minio_data:
+  localstack_data:
