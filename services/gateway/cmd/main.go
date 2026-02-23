@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gateway/internal/api"
 	"gateway/internal/ws"
 	"log"
 	"net/http"
@@ -41,6 +42,8 @@ func main() {
 			log.Printf("Erreur écriture: %v", err)
 		}
 	})
+
+	r.Post("/api/messages", api.NewMessagesHandler(nc))
 
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
 		socket, err := upgrader.Upgrade(w, r)
