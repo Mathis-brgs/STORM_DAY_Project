@@ -60,6 +60,9 @@ func (h *Hub) BroadcastToRoom(roomName string, payload []byte) {
 	}
 
 	for _, socket := range clients {
-		_ = socket.WriteMessage(gws.OpcodeText, payload)
+		err := socket.WriteMessage(gws.OpcodeText, payload)
+		if err != nil {
+			log.Printf("Erreur envoi message : %v", err)
+		}
 	}
 }
