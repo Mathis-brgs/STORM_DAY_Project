@@ -144,3 +144,15 @@ module "iam" {
     module.s3.media_bucket_arn
   ]
 }
+
+# ------------------------------------------------------------------------------
+# Module Budget (alertes de coûts - GRATUIT)
+# ------------------------------------------------------------------------------
+
+module "budget" {
+  source = "../../modules/budget"
+
+  project_name         = var.project_name
+  monthly_budget_limit = var.monthly_budget_limit
+  alert_emails         = var.alert_emails
+}

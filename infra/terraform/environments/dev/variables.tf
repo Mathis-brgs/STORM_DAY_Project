@@ -55,3 +55,19 @@ variable "db_password" {
   type        = string
   sensitive   = true  # Ne s'affiche pas dans les logs
 }
+
+# ------------------------------------------------------------------------------
+# Budget
+# ------------------------------------------------------------------------------
+
+variable "monthly_budget_limit" {
+  description = "Budget mensuel max en USD"
+  type        = string
+  default     = "100"
+}
+
+variable "alert_emails" {
+  description = "Emails pour les alertes budget"
+  type        = list(string)
+  default     = ["mathis@example.com"]  # À changer
+}
