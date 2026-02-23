@@ -48,7 +48,17 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Validate Token to get User ID
-	valPayload, err := json.Marshal(map[string]string{"token": token})
+	// ✅ Wrapper NestJS requis : { pattern, data, id }
+	valRequest := struct {
+		Pattern string      `json:"pattern"`
+		Data    any `json:"data"`
+		ID      string      `json:"id"`
+	}{
+		Pattern: "auth.validate",
+		Data:    map[string]string{"token": token},
+		ID:      time.Now().String(),
+	}
+	valPayload, err := json.Marshal(valRequest)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -71,7 +81,17 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Call Logout with User ID
-	logoutPayload, err := json.Marshal(map[string]string{"userId": valResult.User.ID})
+	// Wrapper NestJS requis : { pattern, data, id }
+	logoutRequest := struct {
+		Pattern string      `json:"pattern"`
+		Data    any `json:"data"`
+		ID      string      `json:"id"`
+	}{
+		Pattern: "auth.logout",
+		Data:    map[string]string{"userId": valResult.User.ID},
+		ID:      time.Now().String(),
+	}
+	logoutPayload, err := json.Marshal(logoutRequest)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -91,7 +111,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func proxyRequest(nc *nats.Conn, subject string, w http.ResponseWriter, r *http.Request) {
-	var body interface{}
+	var body any
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
@@ -102,7 +122,7 @@ func proxyRequest(nc *nats.Conn, subject string, w http.ResponseWriter, r *http.
 	reqID := time.Now().String() // Simple unique ID
 	request := struct {
 		Pattern string      `json:"pattern"`
-		Data    interface{} `json:"data"`
+		Data    any `json:"data"`
 		ID      string      `json:"id"`
 	}{
 		Pattern: subject,
