@@ -14,7 +14,6 @@ require (
 
 require (
 	github.com/dolthub/maphash v0.1.0 // indirect
-	github.com/golang/protobuf v1.5.0 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect
 	github.com/nats-io/nkeys v0.4.11 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
