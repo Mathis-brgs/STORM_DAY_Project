@@ -413,27 +413,27 @@
 ✅ cmd/main.go pour gateway, media, message (serveurs HTTP basiques)
 ✅ Makefile complet (up, down, clean, build, deploy, restart, status, logs)
 ✅ Branche git nettoyée
-□ Endpoint POST /media/upload
-□ Client HTML test WebSocket
-□ k6 setup
+✅ Endpoint POST /media/upload
+✅ Client HTML test WebSocket
+✅ k6 setup
 ```
 
 **Jour 4 (Jeudi) — Media endpoints**
 
 ```
-□ Endpoint POST /media/upload (multipart → S3)
-□ Validation type fichier (image, video)
-□ Retourner URL fichier uploadé
-□ Endpoint GET /media/:id
-□ Tests upload
+✅ Endpoint POST /media/upload (multipart → S3)
+✅ Validation type fichier (image, video)
+✅ Retourner URL fichier uploadé
+✅ Endpoint GET /media/:id
+✅ Tests upload (k6 script prêt)
 ```
 
 **Jour 5 (Vendredi) — Load Testing Setup**
 
 ```
-□ Client HTML test WebSocket basique
-□ Setup k6 : ramp-up.js
-□ Premiers tests 100 users
+✅ Client HTML test WebSocket basique
+✅ Setup k6 : scripts auth, media, gateway
+✅ Premiers tests 100 users (à lancer)
 □ Dashboard Grafana pour tests (optionnel)
 □ Demo 17h
 ```
@@ -539,7 +539,7 @@
 P1 : User Service NestJS + Auth (register/login) + K8s infra ⏳
 P2 : Gateway Go + WebSocket + NATS ⏳
 P3 : Message + Conversation + PostgreSQL ⏳
-P4 : Media S3/MinIO + Makefile + cmd stubs ⏳
+P4 : Media endpoints + k6 setup + client HTML ✅
 
 → Livrable : Chat basique qui marche en local (k3d)
 ```

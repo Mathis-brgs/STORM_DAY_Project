@@ -14,6 +14,7 @@ import (
 type S3Client struct {
 	client     *s3.Client
 	bucketName string
+	endpoint   string
 }
 
 // NewS3Client initialise la connexion MinIO avec le SDK AWS v2
@@ -41,7 +42,13 @@ func NewS3Client(bucketName string) (*S3Client, error) {
 	return &S3Client{
 		client:     client,
 		bucketName: bucketName,
+		endpoint:   "http://" + endpoint,
 	}, nil
+}
+
+// GetFileURL retourne l'URL publique d'un objet dans le bucket
+func (s *S3Client) GetFileURL(key string) string {
+	return fmt.Sprintf("%s/%s/%s", s.endpoint, s.bucketName, key)
 }
 
 // UploadFile envoie un fichier (io.Reader) vers le bucket
