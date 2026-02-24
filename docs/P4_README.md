@@ -1,8 +1,10 @@
 # P4 — Media · Notification · Infra K8s · Monitoring
 
 > Récap de tout ce qui a été fait côté P4 sur le projet STORM.
+et  
+>Pour ne pas que je me trompe 
 
----
+--- 
 
 ## Ce qui a été livré
 
@@ -158,6 +160,35 @@ k6 run --env BASE_URL=http://localhost:8080 tests/k6/auth.js
 - Media upload : `p95 < 2000ms`, `erreurs < 5%`
 
 ---
+
+ce que aujourd'hui j'ai fais (mar/24)
+
+Les 4 tâches sont faites et commitées. Voici le récap de ce qui a été fait :
+
+✅ NATS cluster 3 nœuds (Helm chart)
+infra/k8s/helm/nats-values.yaml — Helm values pour le chart officiel nats/nats :
+
+3 replicas en cluster
+JetStream activé (PVC 5Gi)
+Exporter Prometheus intégré (port 7777)
+Instructions install/upgrade/uninstall en commentaire
+✅ Azure K8s overlay
+infra/k8s/overlays/azure/ — identique à l'overlay AWS mais pour AKS :
+
+Images depuis ACR (REPLACE_ACR_NAME.azurecr.io/...)
+Patches pour chaque service → Azure DB PostgreSQL, Azure Cache Redis, Azure Blob
+secrets-azure.yaml avec les placeholders Terraform
+Gateway en LoadBalancer (au lieu de NodePort)
+✅ /metrics sur les services Go
+gateway : r.Handle("/metrics", promhttp.Handler()) sur le chi router :8080
+media / notification / message : goroutine avec http.NewServeMux() sur :8080
+Prometheus peut maintenant scraper tous les services (configs déjà en place dans prometheus.yml)
+✅ ConfigMaps et Secrets K8s
+infra/k8s/base/configmap.yaml — storm-config : NATS_URL, REDIS_ADDR, MINIO_ENDPOINT, DB_HOST_USER/MESSAGE, DB_PORT, USER_SERVICE_URL
+secrets.yaml — ajout du Secret app-secrets avec JWT_SECRET (sorti du hardcoded dans user-service.yaml)
+Tous les deployments référencent maintenant configMapKeyRef / secretKeyRef
+
+
 
 ## Ce qui reste à faire
 
