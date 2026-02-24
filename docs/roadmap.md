@@ -205,8 +205,8 @@
 ```
 ✅ Valider JWT à la connexion WebSocket (appel Auth Service)
 ✅ Rejeter connexions non authentifiées
-□ Heartbeat toutes les 30s
-□ Typing indicator (via NATS)
+✅ Heartbeat toutes les 30s
+✅ Typing indicator (via NATS)
 ✅ Intégration complète avec Auth + Message
 □ Demo 17h
 ```
