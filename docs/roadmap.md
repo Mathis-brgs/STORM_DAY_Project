@@ -476,7 +476,7 @@
   - PostgreSQL : queries, connections
   - Global : vue d'ensemble
 □ Alertes : service down, latency >500ms, errors >1%
-□ Notification Service : push notifications
+✅ Notification Service : push notifications
 □ Load testing 10K → 20K users
 ```
 
