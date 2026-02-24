@@ -1,4 +1,10 @@
-import { Entity, PrimaryColumn, Column, BeforeInsert } from 'typeorm';
+import {
+  Entity,
+  PrimaryColumn,
+  Column,
+  CreateDateColumn,
+  BeforeInsert,
+} from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 
 @Entity('users')
@@ -17,6 +23,9 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   avatar_url: string;
+
+  @CreateDateColumn({ type: 'timestamptz' })
+  created_at: Date;
 
   @BeforeInsert()
   generateId() {

@@ -1,0 +1,32 @@
+# ==============================================================================
+# EXEMPLE DE FICHIER terraform.tfvars - Azure
+# ==============================================================================
+#
+# Copie ce fichier en terraform.tfvars et remplis les valeurs.
+# NE JAMAIS COMMIT terraform.tfvars (contient des secrets) !
+#
+# cp terraform.tfvars.example terraform.tfvars
+#
+# Pour récupérer ton subscription_id :
+#   az login
+#   az account show --query id --output tsv
+#
+# ==============================================================================
+
+# ID de ta subscription Azure (obligatoire)
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Mot de passe PostgreSQL (minimum 8 caractères, majuscule + chiffre requis)
+db_password = "ChangeMe123!"
+
+# Nom du storage account (globalement unique sur Azure, 3-24 chars minuscules)
+# Si "stormdev" est déjà pris par quelqu'un d'autre, ajoute un suffix
+storage_account_name = "stormdev"
+
+# Ton email pour les alertes de budget
+alert_emails = ["mathis@ton-email.com"]
+
+# Tu peux aussi surcharger les valeurs par défaut :
+# project_name  = "storm"
+# environment   = "dev"
+# location      = "francecentral"

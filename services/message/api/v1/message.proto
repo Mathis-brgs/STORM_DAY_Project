@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package message.v1;
+
+option go_package = "github.com/Mathis-brgs/storm-project/services/message/api/v1;apiv1";
+
+// SendMessageRequest est le payload reçu sur NEW_MESSAGE
+message SendMessageRequest {
+  int32 group_id = 1;
+  int32 sender_id = 2;
+  string content = 3;
+}
+
+// ChatMessage représente un message persisté (attachments gérés par media-service)
+message ChatMessage {
+  int32 id = 1;
+  int32 sender_id = 2;
+  int32 group_id = 3;
+  string content = 4;
+  int64 created_at = 5;  // Unix timestamp
+  int64 updated_at = 6;
+}
+
+// Error dans la réponse
+message Error {
+  string code = 1;
+  string message = 2;
+}
+
+// SendMessageResponse enveloppe la réponse
+message SendMessageResponse {
+  bool ok = 1;
+  ChatMessage data = 2;
+  Error error = 3;
+}

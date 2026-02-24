@@ -1,0 +1,91 @@
+# ==============================================================================
+# KUSTOMIZE OVERLAY - Azure
+# ==============================================================================
+#
+# Cet overlay surcharge la config de base pour Azure.
+# Il remplace les services locaux (postgres, redis, minio) par :
+#   - Azure Database for PostgreSQL
+#   - Azure Cache for Redis
+#   - Azure Blob Storage
+#
+# Usage :
+#   kubectl apply -k infra/k8s/overlays/azure
+#
+# ==============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: storm
+
+resources:
+  - ../../base/namespace.yaml
+  - ../../base/nats.yaml         # NATS reste dans le cluster
+  - ../../base/gateway-service.yaml
+  - ../../base/user-service.yaml
+  - ../../base/message-service.yaml
+  - ../../base/media-service.yaml
+  - secrets-azure.yaml
+
+# On ne déploie PAS postgres, redis, minio en Azure
+# → On utilise PostgreSQL Flexible, Azure Redis, Azure Blob à la place
+
+# Surcharger les images avec celles d'ACR
+# Remplace ACR_NAME par le nom de ton Azure Container Registry
+images:
+  - name: storm/user-service
+    newName: ACR_NAME.azurecr.io/storm-user
+    newTag: latest
+  - name: storm/gateway-service
+    newName: ACR_NAME.azurecr.io/storm-gateway
+    newTag: latest
+  - name: storm/media-service
+    newName: ACR_NAME.azurecr.io/storm-media
+    newTag: latest
+  - name: storm/message-service
+    newName: ACR_NAME.azurecr.io/storm-message
+    newTag: latest
+
+# Patcher le user-service pour utiliser PostgreSQL Azure + Redis Azure
+patches:
+  - target:
+      kind: Deployment
+      name: user-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: DB_HOST
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: DB_HOST
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: DB_USER
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: DB_PASSWORD
+          - name: DB_NAME
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: DB_NAME
+          - name: NATS_URL
+            value: nats://nats:4222
+          - name: JWT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: JWT_SECRET
+          - name: REDIS_URL
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: REDIS_URL

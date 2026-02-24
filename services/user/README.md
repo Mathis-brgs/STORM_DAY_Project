@@ -1,97 +1,150 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# User Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Service NestJS responsable de l'authentification et de la gestion des utilisateurs.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Lancer le service
 
 ```bash
-$ npm install
+npm install
+npm run start:dev
 ```
 
-## Compile and run the project
+---
+
+## Tests
+
+### Lancer les tests
 
 ```bash
-# development
-$ npm run start
+# Tous les tests unitaires
+npm run test
 
-# watch mode
-$ npm run start:dev
+# Avec le rapport de couverture
+npm run test:cov
 
-# production mode
-$ npm run start:prod
+# Mode watch (relance à chaque modification)
+npm run test:watch
 ```
 
-## Run tests
+### Résultats attendus
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```
+Tests:   21 passed
+auth.service.ts   → 98% de couverture
+user.service.ts   → 100% de couverture
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Comprendre les tests unitaires
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### C'est quoi un test unitaire ?
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+Un test unitaire vérifie **un seul service isolé**, sans base de données, sans réseau.
+On remplace toutes les dépendances par des **mocks** (faux objets qu'on contrôle).
+
+```
+Sans test unitaire :        Avec test unitaire :
+AuthService                 AuthService
+    ↓                           ↓
+PostgreSQL (vraie DB)       mockUserRepo (faux objet)
+    ↓                           ↓
+réseau, lenteur, état       réponse qu'on décide nous-mêmes
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Structure d'un test
 
-## Resources
+Chaque test suit 3 étapes :
 
-Check out a few resources that may come in handy when working with NestJS:
+```typescript
+it('should throw ConflictException if email already exists', async () => {
+  // 1. Arrange — on prépare le mock
+  mockUserRepo.findOne.mockResolvedValue(mockUser); // simule "email déjà en base"
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+  // 2. Act + Assert — on appelle le service et on vérifie
+  await expect(
+    service.register({ username: 'test', email: 'test@example.com', password: '123' }),
+  ).rejects.toThrow(ConflictException);
+});
+```
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Ce qui est testé
 
-## Stay in touch
+### `auth.service.spec.ts`
 
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+| Méthode | Cas testés |
+|---|---|
+| `register` | Email déjà existant → `ConflictException` |
+| `register` | Email libre → crée l'utilisateur et retourne les tokens |
+| `login` | Utilisateur introuvable → `UnauthorizedException` |
+| `login` | Mauvais mot de passe → `UnauthorizedException` |
+| `login` | Credentials valides → retourne les tokens |
+| `validateToken` | Token invalide → `{ valid: false }` |
+| `validateToken` | Token valide mais utilisateur supprimé → `{ valid: false }` |
+| `validateToken` | Token valide → `{ valid: true, user }` |
+| `logout` | Révoque tous les refresh tokens de l'utilisateur |
+| `refresh` | Token introuvable → `UnauthorizedException` |
+| `refresh` | Token expiré → `UnauthorizedException` |
+| `refresh` | Token valide → révoque l'ancien et retourne de nouveaux tokens |
 
-## License
+### `user.service.spec.ts`
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+| Méthode | Cas testés |
+|---|---|
+| `findById` | Utilisateur introuvable → `NotFoundException` |
+| `findById` | Utilisateur trouvé → retourne les données sans `password_hash` |
+| `update` | Requester ≠ propriétaire → `ForbiddenException` |
+| `update` | Utilisateur introuvable → `NotFoundException` |
+| `update` | Mise à jour du `username` |
+| `update` | Mise à jour de l'`avatar_url` |
+| `update` | Les champs non fournis ne sont pas modifiés |
+| `update` | Le résultat ne contient jamais `password_hash` |
+
+---
+
+## Concepts clés
+
+### `jest.fn()` — fonction mock
+
+Remplace une vraie fonction par une fonction vide qu'on contrôle :
+
+```typescript
+const mockUserRepo = {
+  findOne: jest.fn(), // ne fait rien par défaut
+};
+```
+
+### `mockResolvedValue` vs `mockReturnValue`
+
+```typescript
+mockUserRepo.findOne.mockResolvedValue(user); // pour les fonctions async (retourne une Promise)
+mockUserRepo.create.mockReturnValue(user);    // pour les fonctions sync
+```
+
+### `jest.clearAllMocks()` dans `beforeEach`
+
+Remet tous les mocks à zéro avant chaque test pour éviter que les appels d'un test contaminent le suivant.
+
+### `rejects.toThrow` — tester une exception
+
+```typescript
+await expect(service.login({ ... })).rejects.toThrow(UnauthorizedException);
+```
+
+### `jest.mock('bcrypt')` — mocker un module entier
+
+Remplace toutes les fonctions de bcrypt par des `jest.fn()`.
+Nécessaire car bcrypt est lent (vraies opérations crypto).
+On contrôle ensuite ce que `bcrypt.hash` et `bcrypt.compare` retournent dans chaque test.
+
+---
+
+## Ce qui n'est pas encore testé
+
+| Type | Quand |
+|---|---|
+| Tests d'intégration (vraie DB) | Quand l'infra Azure est disponible |
+| Tests E2E (API complète) | Quand tous les services tournent ensemble |
+| Controllers | Couvert par les tests E2E |
