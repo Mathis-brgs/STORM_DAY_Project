@@ -458,7 +458,7 @@
 □ Terraform : Azure Application Gateway / Ingress
 □ K8s : ConfigMaps, Secrets
 □ K8s : Resource limits (CPU, RAM)
-□ Autoscaling HPA (tous services)
+✅ Autoscaling HPA (tous services)
 ✅ Notification Service (début)
 ```
 
