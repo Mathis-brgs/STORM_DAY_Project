@@ -25,7 +25,7 @@ clean:
 # Note: On utilise :latest pour coller à la variable IMAGES
 build:
 	docker build -t storm/user-service:latest services/user/
-	docker build -t storm/gateway-service:latest services/gateway/
+	docker build -f services/gateway/Dockerfile -t storm/gateway-service:latest .
 	docker build -t storm/message-service:latest services/message/
 	docker build -t storm/media-service:latest services/media/
 
