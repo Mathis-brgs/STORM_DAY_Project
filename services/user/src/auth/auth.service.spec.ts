@@ -193,17 +193,22 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw UnauthorizedException if token is expired', async () => {
-      mockJwtRepo.findOne.mockResolvedValue({
+    it('should revoke expired token and throw UnauthorizedException', async () => {
+      const expiredToken = {
         token: 'expired-token',
         revoked: false,
         expires_at: new Date(Date.now() - 1000),
         user_id: 'user-uuid-1',
-      });
+      };
+      mockJwtRepo.findOne.mockResolvedValue(expiredToken);
+      mockJwtRepo.save.mockResolvedValue({});
 
       await expect(service.refresh('expired-token')).rejects.toThrow(
         UnauthorizedException,
       );
+
+      expect(expiredToken.revoked).toBe(true);
+      expect(mockJwtRepo.save).toHaveBeenCalledWith(expiredToken);
     });
 
     it('should return new tokens on valid refresh token', async () => {
@@ -222,6 +227,9 @@ describe('AuthService', () => {
       const result = await service.refresh('valid-refresh');
 
       expect(storedToken.revoked).toBe(true);
+      expect(mockJwtRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ token: 'valid-refresh', revoked: true }),
+      );
       expect(result.access_token).toBe('new-token');
     });
   });

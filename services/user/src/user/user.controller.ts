@@ -5,7 +5,7 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   @MessagePattern('user.get')
   findById(data: { id: string }) {
