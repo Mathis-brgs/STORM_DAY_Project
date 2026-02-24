@@ -469,13 +469,13 @@
 **Monitoring + Notification**
 
 ```
-□ Prometheus : install sur K8s
-□ Grafana : dashboards avancés
+✅ Prometheus : install sur K8s
+✅ Grafana : dashboards avancés
   - Gateway : connexions actives, latence
   - Messages : throughput, cache hits
   - PostgreSQL : queries, connections
   - Global : vue d'ensemble
-□ Alertes : service down, latency >500ms, errors >1%
+✅ Alertes : service down, latency >500ms, errors >1%
 ✅ Notification Service : push notifications
 □ Load testing 10K → 20K users
 ```

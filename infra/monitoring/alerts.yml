@@ -1,0 +1,60 @@
+groups:
+
+  - name: storm.services
+    rules:
+
+      # Service down depuis > 1 min
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} est DOWN"
+          description: "{{ $labels.job }} n'est plus joignable depuis plus d'1 minute."
+
+      # Latence HTTP p95 > 500ms
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence élevée sur {{ $labels.job }}"
+          description: "p95 = {{ $value | humanizeDuration }} sur {{ $labels.job }}."
+
+      # Taux d'erreurs HTTP > 1%
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taux d'erreurs élevé sur {{ $labels.job }}"
+          description: "{{ $value | humanizePercentage }} d'erreurs 5xx sur {{ $labels.job }}."
+
+  - name: storm.pods
+    rules:
+
+      # Pod en CrashLoopBackOff (redémarrages fréquents)
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[15m]) * 60 > 3
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pod {{ $labels.pod }} crash en boucle"
+          description: "{{ $labels.pod }} redémarre > 3 fois/min depuis 5 min."
+
+      # Mémoire > 90% de la limite
+      - alert: PodHighMemory
+        expr: |
+          container_memory_usage_bytes
+          / on(pod, container) kube_pod_container_resource_limits{resource="memory"}
+          > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mémoire élevée : {{ $labels.pod }}/{{ $labels.container }}"
+          description: "Utilisation mémoire > 90% de la limite."
