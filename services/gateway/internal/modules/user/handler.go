@@ -2,6 +2,7 @@ package user
 
 import (
 	"encoding/json"
+	"gateway/internal/modules/auth"
 	"net/http"
 	"time"
 
@@ -43,10 +44,13 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(msg.Data)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	var wrapper struct {
+		Response json.RawMessage `json:"response"`
+	}
+	if err := json.Unmarshal(msg.Data, &wrapper); err == nil && len(wrapper.Response) > 0 {
+		_, _ = w.Write(wrapper.Response)
+	} else {
+		_, _ = w.Write(msg.Data)
 	}
 }
 
@@ -62,35 +66,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Validate Token to get User ID
-	reqID := time.Now().String()
-	valRequest := struct {
-		Pattern string      `json:"pattern"`
-		Data    interface{} `json:"data"`
-		ID      string      `json:"id"`
-	}{
-		Pattern: "auth.validate",
-		Data:    map[string]string{"token": token},
-		ID:      reqID,
-	}
-	valPayload, err := json.Marshal(valRequest)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	msg, err := h.nc.Request("auth.validate", valPayload, 2*time.Second)
+	valResult, err := auth.ValidateToken(h.nc, token)
 	if err != nil {
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-
-	var valResult struct {
-		Valid bool `json:"valid"`
-		User  struct {
-			ID string `json:"id"`
-		} `json:"user"`
-	}
-	if err := json.Unmarshal(msg.Data, &valResult); err != nil || !valResult.Valid {
+	if !valResult.Valid {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -137,9 +118,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(resp.Data)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+	var wrapper struct {
+		Response json.RawMessage `json:"response"`
+	}
+	if err := json.Unmarshal(resp.Data, &wrapper); err == nil && len(wrapper.Response) > 0 {
+		_, _ = w.Write(wrapper.Response)
+	} else {
+		_, _ = w.Write(resp.Data)
 	}
 }
