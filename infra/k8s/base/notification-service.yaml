@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: storm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: storm/notification-service:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NATS_URL
+              value: nats://nats:4222
+            - name: REDIS_ADDR
+              value: redis:6379
+            - name: REDIS_PASSWORD
+              value: ""
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "echo ok"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "25m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: storm
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - port: 8080
+      targetPort: 8080

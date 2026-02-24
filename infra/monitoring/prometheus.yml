@@ -1,0 +1,65 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  - "alerts.yml"
+
+scrape_configs:
+
+  # Prometheus lui-même
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # NATS monitoring (expose /metrics nativement sur 8222)
+  - job_name: nats
+    static_configs:
+      - targets: ['nats:8222']
+    metrics_path: /metrics
+
+  # Gateway (à activer quand /metrics sera ajouté au service)
+  - job_name: gateway
+    static_configs:
+      - targets: ['gateway-service:8080']
+    metrics_path: /metrics
+
+  # Media service
+  - job_name: media
+    static_configs:
+      - targets: ['media-service:8080']
+    metrics_path: /metrics
+
+  # Notification service
+  - job_name: notification
+    static_configs:
+      - targets: ['notification-service:8080']
+    metrics_path: /metrics
+
+  # Message service
+  - job_name: message
+    static_configs:
+      - targets: ['message-service:8080']
+    metrics_path: /metrics
+
+  # User service (NestJS — ajouter @willsoto/nestjs-prometheus)
+  - job_name: user
+    static_configs:
+      - targets: ['user-service:3000']
+    metrics_path: /metrics
+
+  # Redis exporter (si déployé)
+  - job_name: redis
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # MinIO (expose /minio/prometheus/metrics)
+  - job_name: minio
+    metrics_path: /minio/prometheus/metrics
+    static_configs:
+      - targets: ['minio:9000']

@@ -17,3 +17,8 @@ resources:
   - user-service.yaml
   - message-service.yaml
   - media-service.yaml
+  - notification-service.yaml
+  # Monitoring
+  - monitoring.yaml
+  # Autoscaling
+  - hpa.yaml
