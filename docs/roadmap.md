@@ -446,7 +446,7 @@
 
 ```
 □ Terraform : AKS cluster (avec aide P1)
-□ K8s deployments : tous les services
+✅ K8s deployments : tous les services
 □ K8s services (ClusterIP, LoadBalancer Azure)
 □ NATS cluster (Helm install)
 □ Test deploy sur AKS
@@ -459,7 +459,7 @@
 □ K8s : ConfigMaps, Secrets
 □ K8s : Resource limits (CPU, RAM)
 □ Autoscaling HPA (tous services)
-□ Notification Service (début)
+✅ Notification Service (début)
 ```
 
 ---
