@@ -77,3 +77,6 @@ Thumbs.db
 !*.tfvars.example
 crash.log
 *.tfplan
+
+# Plans de travail quotidiens (locaux uniquement)
+PLAN_*.md
