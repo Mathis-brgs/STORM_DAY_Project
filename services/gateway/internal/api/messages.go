@@ -6,7 +6,7 @@ import (
 	"time"
 
 	apiv1 "github.com/Mathis-brgs/storm-project/services/message/api/v1"
-	"google.golang.org/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck // message-service utilise l'ancien proto
 	"github.com/nats-io/nats.go"
 )
 
