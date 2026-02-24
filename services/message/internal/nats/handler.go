@@ -1,6 +1,8 @@
 package nats
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 
@@ -22,6 +24,7 @@ func NewMessageHandler(svc *service.MessageService) *Handler {
 
 type Handler struct {
 	svc *service.MessageService
+	nc  *nats.Conn
 }
 
 func (h *Handler) handleMessage(msg *nats.Msg) {
@@ -68,6 +71,19 @@ func (h *Handler) handleMessage(msg *nats.Msg) {
 	if err := msg.Respond(data); err != nil {
 		log.Printf("respond: %v", err)
 	}
+
+	// Diffuser le message aux instances de Gateway via NATS
+	// On utilise le format JSON que le Gateway attend pour ses WebSocket
+	broadcastPayload := map[string]interface{}{
+		"action":  "message",
+		"room":    fmt.Sprintf("group:%d", result.GroupID),
+		"user":    fmt.Sprintf("%d", result.SenderID),
+		"content": result.Content,
+		"data":    result, // On inclut l'objet complet avec l'ID et les timestamps
+	}
+	jsonPayload, _ := json.Marshal(broadcastPayload)
+	subject := fmt.Sprintf("message.broadcast.group:%d", result.GroupID)
+	_ = h.nc.Publish(subject, jsonPayload)
 }
 
 func chatMessageToProto(m *models.ChatMessage) *apiv1.ChatMessage {
@@ -97,6 +113,7 @@ func (h *Handler) respondError(msg *nats.Msg, code, text string) {
 }
 
 func (h *Handler) Listen(nc *nats.Conn) error {
+	h.nc = nc
 	_, err := nc.QueueSubscribe("NEW_MESSAGE", "message-service", h.handleMessage)
 	return err
 }

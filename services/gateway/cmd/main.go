@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -20,9 +21,18 @@ func main() {
 	if natsURL == "" {
 		natsURL = nats.DefaultURL
 	}
-	nc, err := nats.Connect(natsURL)
+	var nc *nats.Conn
+	var err error
+	for i := 0; i < 10; i++ {
+		nc, err = nats.Connect(natsURL)
+		if err == nil {
+			break
+		}
+		log.Printf("Tentative de connexion à NATS (%d/10) échouée: %v. Nouvel essai dans 5s...", i+1, err)
+		time.Sleep(5 * time.Second)
+	}
 	if err != nil {
-		log.Fatalf("Impossible de se connecter à NATS: %v", err)
+		log.Fatalf("Impossible de se connecter à NATS après plusieurs tentatives: %v", err)
 	}
 	defer nc.Close()
 	log.Printf("Connecté à NATS sur %s", natsURL)
