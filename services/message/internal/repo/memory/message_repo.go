@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -8,14 +9,12 @@ import (
 	"github.com/Mathis-brgs/storm-project/services/message/internal/repo"
 )
 
-// messageRepo est l'implémentation en mémoire de MessageRepo
 type messageRepo struct {
 	mu       sync.RWMutex
 	messages []*models.ChatMessage
 	counter  int
 }
 
-// NewMessageRepo crée un nouveau repository de messages en mémoire
 func NewMessageRepo() repo.MessageRepo {
 	return &messageRepo{
 		messages: make([]*models.ChatMessage, 0),
@@ -23,25 +22,76 @@ func NewMessageRepo() repo.MessageRepo {
 	}
 }
 
-// Save sauvegarde un message et retourne le message avec son ID généré et CreatedAt
-func (r *messageRepo) Save(msg *models.ChatMessage) (*models.ChatMessage, error) {
+func (r *messageRepo) SaveMessage(msg *models.ChatMessage) (*models.ChatMessage, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Créer une copie du message pour éviter les modifications
 	saved := *msg
-
-	// Générer un ID auto-incrémenté
 	r.counter++
 	saved.ID = r.counter
-
-	// Set CreatedAt si vide
-	if saved.CreatedAt == (time.Time{}) {
+	if saved.CreatedAt.IsZero() {
 		saved.CreatedAt = time.Now()
 	}
+	if saved.UpdatedAt.IsZero() {
+		saved.UpdatedAt = time.Now()
+	}
 
-	// Sauvegarder
 	r.messages = append(r.messages, &saved)
-
 	return &saved, nil
+}
+
+func (r *messageRepo) GetMessageById(id int) (*models.ChatMessage, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, msg := range r.messages {
+		if msg.ID == id {
+			return msg, nil
+		}
+	}
+
+	return nil, errors.New("message not found")
+}
+
+func (r *messageRepo) GetMessagesByGroupId(groupID int) ([]*models.ChatMessage, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var messages []*models.ChatMessage
+	for _, msg := range r.messages {
+		if msg.GroupID == groupID {
+			messages = append(messages, msg)
+		}
+	}
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+	return messages, nil
+}
+
+func (r *messageRepo) UpdateMessageById(id int, content string) (*models.ChatMessage, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, msg := range r.messages {
+		if msg.ID == id {
+			msg.Content = content
+			msg.UpdatedAt = time.Now()
+			return msg, nil
+		}
+	}
+	return nil, errors.New("message not found")
+}
+
+func (r *messageRepo) DeleteMessageById(id int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for index, msg := range r.messages {
+		if msg.ID == id {
+			r.messages = append(r.messages[:index], r.messages[index+1:]...)
+			return nil
+		}
+	}
+	return errors.New("message not found")
 }

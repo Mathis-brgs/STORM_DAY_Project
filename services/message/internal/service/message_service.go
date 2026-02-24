@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/google/uuid"
 	models "github.com/Mathis-brgs/storm-project/services/message/internal/models"
 	"github.com/Mathis-brgs/storm-project/services/message/internal/repo"
 )
@@ -22,17 +23,13 @@ func NewMessageService(messageRepo repo.MessageRepo) *MessageService {
 }
 
 func (s *MessageService) SendMessage(msg *models.ChatMessage) (*models.ChatMessage, error) {
-	// Valider: SenderID non vide
-	if msg.SenderID == 0 {
+	if msg.SenderID == uuid.Nil {
 		return nil, errors.New("sender ID is empty")
 	}
-
-	// Valider: GroupID non vide
 	if msg.GroupID == 0 {
 		return nil, errors.New("group ID is empty")
 	}
 
-	// Valider: Content non vide (trim) et longueur max
 	content := strings.TrimSpace(msg.Content)
 	if content == "" {
 		return nil, errors.New("message content is empty")
@@ -42,12 +39,53 @@ func (s *MessageService) SendMessage(msg *models.ChatMessage) (*models.ChatMessa
 	}
 	msg.Content = content
 
-	// Sauvegarder le message
-	savedMsg, err := s.messageRepo.Save(msg)
+	savedMsg, err := s.messageRepo.SaveMessage(msg)
 	if err != nil {
 		log.Printf("[ERROR] Failed to save message: %v", err)
 		return nil, err
 	}
 
 	return savedMsg, nil
+}
+
+func (s *MessageService) GetMessageById(id int) (*models.ChatMessage, error) {
+	return s.messageRepo.GetMessageById(id)
+}
+
+func (s *MessageService) GetMessagesByGroupId(groupID int) ([]*models.ChatMessage, error) {
+	return s.messageRepo.GetMessagesByGroupId(groupID)
+}
+
+func (s *MessageService) UpdateMessageById(id int, content string) (*models.ChatMessage, error) {
+	if id == 0 {
+		return nil, errors.New("id is empty")
+	}
+
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return nil, errors.New("message content is empty")
+	}
+	if len(content) > maxMessageContentLength {
+		return nil, errors.New("message content too long")
+	}
+
+	updatedMsg, err := s.messageRepo.UpdateMessageById(id, content)
+	if err != nil {
+		return nil, err
+	}
+	return updatedMsg, nil
+}
+
+func (s *MessageService) DeleteMessageById(id int) error {
+	if id == 0 {
+		return errors.New("id is empty")
+	}
+
+	err := s.messageRepo.DeleteMessageById(id)
+	if err != nil {
+		log.Printf("[ERROR] Failed to delete message: %v", err)
+		return err
+	}
+	log.Printf("Message deleted: %d", id)
+	return nil
 }
