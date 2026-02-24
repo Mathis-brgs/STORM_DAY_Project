@@ -2,7 +2,7 @@
 # MODULE NSG - Network Security Groups Azure
 # ==============================================================================
 #
-# Les NSG sont les pare-feu Azure (équivalent des Security Groups AWS).
+# Les NSG (Network Security Groups) sont les pare-feu Azure.
 # Contrôlent le trafic entrant et sortant de chaque subnet.
 #
 # ==============================================================================

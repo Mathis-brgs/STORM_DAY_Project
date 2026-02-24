@@ -5,7 +5,6 @@
 # Ce module crée des alertes de coût Azure quand le budget est dépassé.
 # Tu reçois un email quand : 50%, 75%, 90%, 100% du budget est atteint.
 #
-# Équivalent d'AWS Budgets.
 # SERVICE GRATUIT - Azure Cost Management ne coûte rien.
 #
 # ==============================================================================

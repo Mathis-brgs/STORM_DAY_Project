@@ -2,7 +2,6 @@
 # MODULE MANAGED IDENTITY - Azure Managed Identity
 # ==============================================================================
 #
-# Managed Identity est l'équivalent des IAM Roles AWS.
 # Les pods AKS utilisent cette identité pour accéder à Azure Blob Storage
 # sans stocker de credentials dans le code.
 #

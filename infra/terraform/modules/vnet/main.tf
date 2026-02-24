@@ -3,7 +3,7 @@
 # ==============================================================================
 #
 # Ce module crée le réseau privé Azure avec :
-# - 1 VNet (équivalent du VPC AWS)
+# - 1 VNet (réseau privé Azure)
 # - 2 subnets publics (pour l'AKS Load Balancer)
 # - 1 subnet privé (pour PostgreSQL Flexible Server - délégation obligatoire)
 # - 1 zone DNS privée pour PostgreSQL

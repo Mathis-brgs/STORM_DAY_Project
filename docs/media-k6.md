@@ -5,7 +5,7 @@
 - Subscribers NATS pour:
   - media.upload.requested
   - media.delete.requested
-- Service métier avec upload/delete via S3 (MinIO).
+- Service métier avec upload/delete via MinIO (local) / Azure Blob Storage (production).
 - Suppression des anciens handlers/routes HTTP du media service.
 - Variables d’environnement pour NATS/MinIO.
 

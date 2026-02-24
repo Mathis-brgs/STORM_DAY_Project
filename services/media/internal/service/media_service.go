@@ -10,7 +10,7 @@ import (
 )
 
 type MediaService struct {
-	storage *storage.S3Client
+	storage *storage.MinIOClient
 }
 
 type UploadRequest struct {
@@ -25,7 +25,7 @@ type UploadResponse struct {
 	Key     string `json:"key"`
 }
 
-func NewMediaService(storageClient *storage.S3Client) *MediaService {
+func NewMediaService(storageClient *storage.MinIOClient) *MediaService {
 	return &MediaService{storage: storageClient}
 }
 

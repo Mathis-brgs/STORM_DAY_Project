@@ -2,11 +2,11 @@
 # MODULE STORAGE - Azure Blob Storage
 # ==============================================================================
 #
-# Azure Blob Storage est l'équivalent d'AWS S3.
+# Azure Blob Storage — stockage objet managé.
 # Structure :
-#   Storage Account (≈ compte global)
-#   └── Container "avatars" (≈ bucket S3)
-#   └── Container "media"   (≈ bucket S3)
+#   Storage Account (compte global)
+#   └── Container "avatars" (photos de profil)
+#   └── Container "media"   (fichiers uploadés)
 #
 # IMPORTANT : Le nom du storage account doit être globalement unique sur Azure
 # et uniquement des minuscules alphanumériques (3-24 chars).

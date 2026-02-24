@@ -2,7 +2,7 @@
 # MODULE REDIS - Azure Cache for Redis
 # ==============================================================================
 #
-# Azure Cache for Redis est le service managé (équivalent d'ElastiCache AWS).
+# Azure Cache for Redis — service Redis managé par Azure.
 #
 # Utilisations dans STORM :
 # - Cache des données fréquemment lues
