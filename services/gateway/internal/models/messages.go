@@ -3,6 +3,7 @@ package models
 const (
 	ActionJoin    = "join"
 	ActionMessage = "message"
+	ActionTyping  = "typing"
 )
 
 type InputMessage struct {
