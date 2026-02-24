@@ -21,9 +21,20 @@ spec:
             - containerPort: 8080
           env:
             - name: NATS_URL
-              value: nats://nats:4222
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: NATS_URL
             - name: MINIO_ENDPOINT
-              value: minio:9000
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: MINIO_ENDPOINT
+            - name: MINIO_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: MINIO_BUCKET
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:

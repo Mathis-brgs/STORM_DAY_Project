@@ -159,20 +159,45 @@ k6 run --env BASE_URL=http://localhost:8080 tests/k6/auth.js
 
 ---
 
-## Ce qui reste à faire (sans Azure)
+## Ce qui reste à faire
+
+### Faisable en local (sans Azure)
 
 ```
 □ NATS cluster 3 nœuds (Helm chart)
 □ Azure K8s overlay (remplacer l'overlay AWS)
 □ Ajouter /metrics aux services Go (prometheus/client_golang)
-□ Load testing 10K → 20K users (une fois tout déployé)
+□ K8s : affiner ConfigMaps et Secrets
+□ Load testing 10K → 20K users (une fois le cluster up)
+□ Chaos engineering scripts (kill-pods.sh, inject-latency.sh, fill-disk.sh)
+□ Alerting Slack/Discord (Grafana alertmanager)
 ```
 
-## Ce qui nécessite Azure
+### Nécessite Azure (accès école)
 
 ```
-□ Terraform AKS cluster
-□ Deploy sur AKS
-□ Azure Application Gateway / Ingress
-□ Secrets K8s Azure
+□ Terraform : AKS cluster (avec P1)
+□ K8s services (LoadBalancer Azure)
+□ Test deploy sur AKS
+□ Terraform : Azure Application Gateway / Ingress
+□ Autoscaling tuning AKS (metrics, thresholds)
+□ Spot/Preemptible nodes Azure (économies)
+□ Multi-zone Azure
+□ Backup strategy Azure
+□ Disaster recovery plan
+□ Load testing 30K → 50K users
+```
+
+### Dernière ligne droite (semaines finales)
+
+```
+□ Dashboards STORM DAY dédiés
+□ Tests chaos tous services
+□ STORM DAY : orchestration tests + monitoring live
+□ Documentation K8s (deployments, scaling)
+□ Documentation Monitoring (dashboards, alertes)
+□ Runbooks (que faire si X tombe)
+□ Cleanup ressources inutilisées (coûts Azure)
+□ Slides présentation (partie infra K8s)
+□ Répétition soutenance
 ```
