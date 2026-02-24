@@ -16,12 +16,11 @@
 infra/terraform/
 ├── README.md                    # Ce fichier
 ├── environments/
-│   ├── dev/                     # Environnement de développement
-│   │   ├── main.tf              # Point d'entrée, appelle les modules
-│   │   ├── variables.tf         # Variables de l'environnement
-│   │   ├── outputs.tf           # Valeurs exportées après apply
-│   │   └── terraform.tfvars.example  # Exemple de fichier de config
-│   └── local/                   # Test local (sans Azure)
+│   └── dev/                     # Environnement de développement (Azure)
+│       ├── main.tf              # Point d'entrée, appelle les modules
+│       ├── variables.tf         # Variables de l'environnement
+│       ├── outputs.tf           # Valeurs exportées après apply
+│       └── terraform.tfvars.example  # Exemple de fichier de config
 └── modules/                     # Modules réutilisables
     ├── vnet/                    # Réseau Azure (VNet + subnets)
     ├── nsg/                     # Pare-feu (Network Security Groups)
