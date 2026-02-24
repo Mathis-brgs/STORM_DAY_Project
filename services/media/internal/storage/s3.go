@@ -11,13 +11,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-type S3Client struct {
+// MinIOClient gère la connexion à MinIO (stockage objet local compatible S3).
+// En production Azure, le media service utilise Azure Blob Storage à la place.
+type MinIOClient struct {
 	client     *s3.Client
 	bucketName string
 }
 
-// NewS3Client initialise la connexion MinIO avec le SDK AWS v2
-func NewS3Client(bucketName string) (*S3Client, error) {
+// NewMinIOClient initialise la connexion à MinIO via le SDK AWS v2 (compatible S3).
+func NewMinIOClient(bucketName string) (*MinIOClient, error) {
 	endpoint := os.Getenv("MINIO_ENDPOINT")
 	accessKey := os.Getenv("MINIO_ACCESS_KEY")
 	secretKey := os.Getenv("MINIO_SECRET_KEY")
@@ -38,14 +40,14 @@ func NewS3Client(bucketName string) (*S3Client, error) {
 		UsePathStyle: true,
 	})
 
-	return &S3Client{
+	return &MinIOClient{
 		client:     client,
 		bucketName: bucketName,
 	}, nil
 }
 
 // UploadFile envoie un fichier (io.Reader) vers le bucket
-func (s *S3Client) UploadFile(ctx context.Context, key string, body io.Reader, contentType string) error {
+func (s *MinIOClient) UploadFile(ctx context.Context, key string, body io.Reader, contentType string) error {
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucketName),
 		Key:         aws.String(key),
@@ -53,19 +55,19 @@ func (s *S3Client) UploadFile(ctx context.Context, key string, body io.Reader, c
 		ContentType: aws.String(contentType),
 	})
 	if err != nil {
-		return fmt.Errorf("erreur upload S3: %w", err)
+		return fmt.Errorf("erreur upload MinIO: %w", err)
 	}
 	return nil
 }
 
 // DeleteFile supprime un objet du bucket
-func (s *S3Client) DeleteFile(ctx context.Context, key string) error {
+func (s *MinIOClient) DeleteFile(ctx context.Context, key string) error {
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucketName),
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return fmt.Errorf("erreur delete S3: %w", err)
+		return fmt.Errorf("erreur delete MinIO: %w", err)
 	}
 	return nil
 }

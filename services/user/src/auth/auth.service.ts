@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { v7 as uuidv7 } from 'uuid';
 import { User } from '../user.entity.js';
 import { Jwt } from '../jwt.entity.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -101,7 +102,12 @@ export class AuthService {
     const stored = await this.jwtRepo.findOne({
       where: { token: refreshToken, revoked: false },
     });
-    if (!stored || stored.expires_at < new Date()) {
+    if (!stored) {
+      throw new UnauthorizedException('Refresh token invalide ou expiré');
+    }
+    if (stored.expires_at < new Date()) {
+      stored.revoked = true;
+      await this.jwtRepo.save(stored);
       throw new UnauthorizedException('Refresh token invalide ou expiré');
     }
 
@@ -120,7 +126,7 @@ export class AuthService {
   }
 
   private async generateTokens(user: User) {
-    const payload = { sub: user.id, username: user.username };
+    const payload = { sub: user.id, username: user.username, jti: uuidv7() };
 
     const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });

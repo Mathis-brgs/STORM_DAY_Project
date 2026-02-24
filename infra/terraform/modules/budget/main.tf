@@ -1,58 +1,58 @@
 # ==============================================================================
-# MODULE BUDGET - Alertes de coût AWS
+# MODULE BUDGET - Azure Cost Management
 # ==============================================================================
 #
-# Ce module crée des alertes automatiques quand tu dépasses un certain % du budget.
-# Tu reçois un email quand :
-# - 50% du budget est atteint
-# - 75% du budget est atteint
-# - 90% du budget est atteint
-# - 100% du budget est atteint
+# Ce module crée des alertes de coût Azure quand le budget est dépassé.
+# Tu reçois un email quand : 50%, 75%, 90%, 100% du budget est atteint.
 #
-# SERVICE GRATUIT - AWS Budgets ne coûte rien
+# SERVICE GRATUIT - Azure Cost Management ne coûte rien.
 #
 # ==============================================================================
 
-resource "aws_budgets_budget" "monthly" {
-  name         = "${var.project_name}-monthly-budget"
-  budget_type  = "COST"
-  limit_amount = var.monthly_budget_limit  # ex: 100 ($)
-  limit_unit   = "USD"
-  time_unit    = "MONTHLY"
+resource "azurerm_consumption_budget_resource_group" "main" {
+  name              = "${var.project_name}-budget-${var.environment}"
+  resource_group_id = var.resource_group_id
+
+  amount     = var.monthly_budget_limit
+  time_grain = "Monthly"
+
+  time_period {
+    start_date = var.budget_start_date  # Format : "2026-02-01T00:00:00Z"
+  }
 
   # Alerte à 50%
   notification {
-    comparison_operator       = "GREATER_THAN"
-    threshold                 = 50
-    threshold_type            = "PERCENTAGE"
-    notification_type         = "ACTUAL"
-    subscriber_email_addresses = var.alert_emails
+    enabled        = true
+    threshold      = 50
+    operator       = "GreaterThan"
+    threshold_type = "Actual"
+    contact_emails = var.alert_emails
   }
 
   # Alerte à 75%
   notification {
-    comparison_operator       = "GREATER_THAN"
-    threshold                 = 75
-    threshold_type            = "PERCENTAGE"
-    notification_type         = "ACTUAL"
-    subscriber_email_addresses = var.alert_emails
+    enabled        = true
+    threshold      = 75
+    operator       = "GreaterThan"
+    threshold_type = "Actual"
+    contact_emails = var.alert_emails
   }
 
   # Alerte à 90%
   notification {
-    comparison_operator       = "GREATER_THAN"
-    threshold                 = 90
-    threshold_type            = "PERCENTAGE"
-    notification_type         = "ACTUAL"
-    subscriber_email_addresses = var.alert_emails
+    enabled        = true
+    threshold      = 90
+    operator       = "GreaterThan"
+    threshold_type = "Actual"
+    contact_emails = var.alert_emails
   }
 
   # Alerte à 100% (DÉPASSEMENT)
   notification {
-    comparison_operator       = "GREATER_THAN"
-    threshold                 = 100
-    threshold_type            = "PERCENTAGE"
-    notification_type         = "ACTUAL"
-    subscriber_email_addresses = var.alert_emails
+    enabled        = true
+    threshold      = 100
+    operator       = "GreaterThan"
+    threshold_type = "Actual"
+    contact_emails = var.alert_emails
   }
 }

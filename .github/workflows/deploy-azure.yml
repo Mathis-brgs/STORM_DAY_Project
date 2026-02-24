@@ -1,0 +1,144 @@
+# ==============================================================================
+# CI/CD - Deploy sur Azure
+# ==============================================================================
+#
+# Ce workflow fait :
+# 1. Build les images Docker de chaque service
+# 2. Push les images sur Azure Container Registry (ACR)
+# 3. Déploie sur AKS (Kubernetes Azure)
+#
+# Déclenché manuellement ou sur push sur main
+#
+# Secrets GitHub requis :
+#   AZURE_CLIENT_ID     - App Registration Client ID (OIDC)
+#   AZURE_TENANT_ID     - Azure Tenant ID
+#   AZURE_SUBSCRIPTION_ID - Azure Subscription ID
+#   ACR_NAME            - Nom du registry (ex: stormacr)
+#   AKS_CLUSTER_NAME    - Nom du cluster AKS (ex: storm-aks-dev)
+#   AKS_RESOURCE_GROUP  - Resource group du cluster (ex: storm-dev)
+#
+# ==============================================================================
+
+name: Deploy to Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environnement cible"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+
+  push:
+    branches: [main]
+
+# Permissions pour OIDC (connexion Azure sans secrets stockés)
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_LOGIN_SERVER: ${{ secrets.ACR_NAME }}.azurecr.io
+  AKS_CLUSTER:      ${{ secrets.AKS_CLUSTER_NAME }}
+  AKS_RG:           ${{ secrets.AKS_RESOURCE_GROUP }}
+
+jobs:
+  # ============================================================================
+  # Job 1 : Build & Push les images Docker sur ACR
+  # ============================================================================
+  build-and-push:
+    name: Build & Push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - user
+          - gateway
+          - media
+          - message
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Connexion à Azure via OIDC (Federated Credentials — plus sécurisé que des secrets)
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Login au registry Docker privé Azure (ACR)
+      - name: Login to ACR
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      # Build et push l'image Docker
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: services/${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ env.ACR_LOGIN_SERVER }}/storm-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.ACR_LOGIN_SERVER }}/storm-${{ matrix.service }}:latest
+
+  # ============================================================================
+  # Job 2 : Deploy sur AKS
+  # ============================================================================
+  deploy:
+    name: Deploy to AKS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Configurer kubectl pour se connecter à AKS
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ env.AKS_RG }} \
+            --name ${{ env.AKS_CLUSTER }} \
+            --overwrite-existing
+
+      # Mettre à jour les images dans les deployments K8s
+      - name: Deploy services
+        run: |
+          SERVICES="user gateway media message"
+          for SERVICE in $SERVICES; do
+            kubectl set image deployment/${SERVICE}-service \
+              ${SERVICE}-service=${{ env.ACR_LOGIN_SERVER }}/storm-${SERVICE}:${{ github.sha }} \
+              -n storm
+          done
+
+      # Attendre que tous les pods soient prêts
+      - name: Wait for rollout
+        run: |
+          SERVICES="user gateway media message"
+          for SERVICE in $SERVICES; do
+            echo "Waiting for ${SERVICE}-service..."
+            kubectl rollout status deployment/${SERVICE}-service -n storm --timeout=120s
+          done
+
+      # Vérifier le statut
+      - name: Verify deployment
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n storm
+          echo ""
+          echo "=== Services ==="
+          kubectl get svc -n storm

@@ -12,11 +12,11 @@ import (
 func main() {
 	log.Println("🚀 Démarrage du Media Service...")
 
-	// 1. Initialisation du client S3 (MinIO)
+	// 1. Initialisation du client MinIO (stockage objet local)
 	// On utilise un bucket nommé "media-bucket" (à créer via l'interface MinIO si besoin)
-	s3Client, err := storage.NewS3Client("media-bucket")
+	minioClient, err := storage.NewMinIOClient("media-bucket")
 	if err != nil {
-		log.Fatalf("❌ Erreur initialisation S3: %v", err)
+		log.Fatalf("❌ Erreur initialisation MinIO: %v", err)
 	}
 
 	// 2. Exécution de la tâche de test (Upload Hello World)
@@ -25,8 +25,8 @@ func main() {
 
 	log.Println("📤 Tentative d'upload du fichier test...")
 
-	testContent := "Hello World ! Ceci est un test depuis le SDK AWS Go v2."
-	err = s3Client.UploadFile(
+	testContent := "Hello World ! Ceci est un test depuis le client MinIO."
+	err = minioClient.UploadFile(
 		ctx,
 		"test/hello-world.txt", // Chemin/Nom du fichier dans le bucket
 		strings.NewReader(testContent),

@@ -1,75 +1,55 @@
 # ==============================================================================
-# OUTPUTS DE L'ENVIRONNEMENT DEV
+# OUTPUTS DE L'ENVIRONNEMENT DEV - Azure
 # ==============================================================================
-# Ces valeurs sont affichées après terraform apply.
-# Utile pour configurer tes applications.
+# Ces valeurs sont affichées après tofu apply.
+# Copie-les dans tes secrets K8s (infra/k8s/overlays/azure/secrets-azure.yaml).
 
-# ------------------------------------------------------------------------------
-# VPC
-# ------------------------------------------------------------------------------
-
-output "vpc_id" {
-  description = "ID du VPC"
-  value       = module.vpc.vpc_id
+output "resource_group_name" {
+  description = "Nom du resource group"
+  value       = azurerm_resource_group.main.name
 }
 
-output "private_subnet_ids" {
-  description = "IDs des subnets privés"
-  value       = module.vpc.private_subnet_ids
+output "postgresql_host" {
+  description = "Hostname PostgreSQL (à mettre dans DB_HOST)"
+  value       = module.postgresql.postgresql_fqdn
 }
 
-output "public_subnet_ids" {
-  description = "IDs des subnets publics"
-  value       = module.vpc.public_subnet_ids
-}
-
-# ------------------------------------------------------------------------------
-# Base de données
-# ------------------------------------------------------------------------------
-
-output "rds_endpoint" {
-  description = "Endpoint PostgreSQL (host:port)"
-  value       = module.rds.db_instance_endpoint
-}
-
-output "rds_database_name" {
+output "db_name" {
   description = "Nom de la base de données"
-  value       = module.rds.db_name
+  value       = module.postgresql.db_name
 }
 
-# ------------------------------------------------------------------------------
-# Redis
-# ------------------------------------------------------------------------------
-
-output "redis_endpoint" {
-  description = "Endpoint Redis"
-  value       = module.elasticache.redis_endpoint
+output "redis_hostname" {
+  description = "Hostname Redis"
+  value       = module.redis.redis_hostname
 }
 
 output "redis_connection_string" {
-  description = "String de connexion Redis"
-  value       = module.elasticache.redis_connection_string
+  description = "String de connexion Redis (à mettre dans REDIS_URL)"
+  value       = module.redis.redis_connection_string
 }
 
-# ------------------------------------------------------------------------------
-# S3
-# ------------------------------------------------------------------------------
-
-output "s3_avatars_bucket" {
-  description = "Nom du bucket avatars"
-  value       = module.s3.avatars_bucket_name
+output "storage_account_name" {
+  description = "Nom du storage account"
+  value       = module.storage.storage_account_name
 }
 
-output "s3_media_bucket" {
-  description = "Nom du bucket media"
-  value       = module.s3.media_bucket_name
+output "primary_blob_endpoint" {
+  description = "URL de base Blob Storage"
+  value       = module.storage.primary_blob_endpoint
 }
 
-# ------------------------------------------------------------------------------
-# IAM
-# ------------------------------------------------------------------------------
+output "avatars_container" {
+  description = "Nom du container avatars"
+  value       = module.storage.avatars_container_name
+}
 
-output "app_role_arn" {
-  description = "ARN du rôle IAM pour les apps"
-  value       = module.iam.app_role_arn
+output "media_container" {
+  description = "Nom du container media"
+  value       = module.storage.media_container_name
+}
+
+output "managed_identity_client_id" {
+  description = "Client ID de la Managed Identity (pour configurer AKS)"
+  value       = module.managed_identity.identity_client_id
 }
