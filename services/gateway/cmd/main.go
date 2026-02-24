@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/lxzan/gws"
 	"github.com/nats-io/nats.go"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -65,6 +66,9 @@ func main() {
 		}
 		go socket.ReadLoop()
 	})
+
+	// Metrics Prometheus
+	r.Handle("/metrics", promhttp.Handler())
 
 	addr := ":8080"
 	log.Printf("Serveur démarré sur http://localhost%s", addr)

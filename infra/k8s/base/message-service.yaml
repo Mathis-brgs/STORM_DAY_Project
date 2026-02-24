@@ -21,11 +21,20 @@ spec:
             - containerPort: 8080
           env:
             - name: NATS_URL
-              value: nats://nats:4222
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: NATS_URL
             - name: DB_HOST
-              value: postgres-message
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: DB_HOST_MESSAGE
             - name: DB_PORT
-              value: "5432"
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: DB_PORT
             - name: DB_USER
               valueFrom:
                 secretKeyRef:

@@ -21,11 +21,17 @@ spec:
             - containerPort: 8080
           env:
             - name: NATS_URL
-              value: nats://nats:4222
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: NATS_URL
             - name: REDIS_URL
               value: redis://redis:6379
             - name: USER_SERVICE_URL
-              value: http://user-service:3000
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: USER_SERVICE_URL
           readinessProbe:
             httpGet:
               path: /

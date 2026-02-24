@@ -12,6 +12,7 @@ import (
 	"github.com/Mathis-brgs/storm-project/services/media/internal/storage"
 	"github.com/Mathis-brgs/storm-project/services/media/internal/subscribers"
 	"github.com/nats-io/nats.go"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -55,10 +56,11 @@ func main() {
 	}
 	log.Printf("NATS subscribers actifs sur: %s", natsURL)
 
-	// Démarrer le serveur HTTP
+	// Démarrer le serveur HTTP (handlers + metrics)
 	mux := http.NewServeMux()
 	handler := handlers.NewMediaHandler(mediaService)
 	handler.RegisterRoutes(mux)
+	mux.Handle("/metrics", promhttp.Handler())
 
 	go func() {
 		log.Printf("HTTP server démarré sur :%s", port)
@@ -67,7 +69,6 @@ func main() {
 		}
 	}()
 
-	// Graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop

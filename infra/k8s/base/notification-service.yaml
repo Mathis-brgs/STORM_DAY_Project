@@ -17,16 +17,26 @@ spec:
         - name: notification-service
           image: storm/notification-service:latest
           imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: metrics
           env:
             - name: NATS_URL
-              value: nats://nats:4222
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: NATS_URL
             - name: REDIS_ADDR
-              value: redis:6379
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: REDIS_ADDR
             - name: REDIS_PASSWORD
               value: ""
           readinessProbe:
-            exec:
-              command: ["sh", "-c", "echo ok"]
+            httpGet:
+              path: /health
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
           resources:
