@@ -1,20 +1,27 @@
 # ==============================================================================
-# CI/CD - Deploy sur AWS
+# CI/CD - Deploy sur Azure
 # ==============================================================================
 #
 # Ce workflow fait :
 # 1. Build les images Docker de chaque service
-# 2. Push les images sur AWS ECR (registry privé)
-# 3. Déploie sur EKS (Kubernetes AWS)
+# 2. Push les images sur Azure Container Registry (ACR)
+# 3. Déploie sur AKS (Kubernetes Azure)
 #
 # Déclenché manuellement ou sur push sur main
 #
+# Secrets GitHub requis :
+#   AZURE_CLIENT_ID     - App Registration Client ID (OIDC)
+#   AZURE_TENANT_ID     - Azure Tenant ID
+#   AZURE_SUBSCRIPTION_ID - Azure Subscription ID
+#   ACR_NAME            - Nom du registry (ex: stormacr)
+#   AKS_CLUSTER_NAME    - Nom du cluster AKS (ex: storm-aks-dev)
+#   AKS_RESOURCE_GROUP  - Resource group du cluster (ex: storm-dev)
+#
 # ==============================================================================
 
-name: Deploy to AWS
+name: Deploy to Azure
 
 on:
-  # Déploiement manuel depuis GitHub (bouton "Run workflow")
   workflow_dispatch:
     inputs:
       environment:
@@ -26,23 +33,22 @@ on:
           - dev
           - prod
 
-  # Auto-deploy quand on push sur main
   push:
     branches: [main]
 
-# Permissions pour OIDC (connexion AWS sans access keys stockées)
+# Permissions pour OIDC (connexion Azure sans secrets stockés)
 permissions:
   id-token: write
   contents: read
 
 env:
-  AWS_REGION: eu-west-3
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-3.amazonaws.com
-  EKS_CLUSTER: storm-cluster
+  ACR_LOGIN_SERVER: ${{ secrets.ACR_NAME }}.azurecr.io
+  AKS_CLUSTER:      ${{ secrets.AKS_CLUSTER_NAME }}
+  AKS_RG:           ${{ secrets.AKS_RESOURCE_GROUP }}
 
 jobs:
   # ============================================================================
-  # Job 1 : Build & Push les images Docker
+  # Job 1 : Build & Push les images Docker sur ACR
   # ============================================================================
   build-and-push:
     name: Build & Push ${{ matrix.service }}
@@ -59,17 +65,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Connexion à AWS via OIDC (plus sécurisé que des access keys)
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      # Connexion à Azure via OIDC (Federated Credentials — plus sécurisé que des secrets)
+      - name: Azure Login
+        uses: azure/login@v2
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Login au registry Docker privé AWS (ECR)
-      - name: Login to ECR
-        id: ecr-login
-        uses: aws-actions/amazon-ecr-login@v2
+      # Login au registry Docker privé Azure (ACR)
+      - name: Login to ACR
+        run: az acr login --name ${{ secrets.ACR_NAME }}
 
       # Build et push l'image Docker
       - name: Build and push Docker image
@@ -78,14 +84,14 @@ jobs:
           context: services/${{ matrix.service }}
           push: true
           tags: |
-            ${{ env.ECR_REGISTRY }}/storm-${{ matrix.service }}:${{ github.sha }}
-            ${{ env.ECR_REGISTRY }}/storm-${{ matrix.service }}:latest
+            ${{ env.ACR_LOGIN_SERVER }}/storm-${{ matrix.service }}:${{ github.sha }}
+            ${{ env.ACR_LOGIN_SERVER }}/storm-${{ matrix.service }}:latest
 
   # ============================================================================
-  # Job 2 : Deploy sur EKS
+  # Job 2 : Deploy sur AKS
   # ============================================================================
   deploy:
-    name: Deploy to EKS
+    name: Deploy to AKS
     runs-on: ubuntu-latest
     needs: build-and-push
     environment: ${{ github.event.inputs.environment || 'dev' }}
@@ -94,15 +100,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Azure Login
+        uses: azure/login@v2
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Configurer kubectl pour se connecter à EKS
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+      # Configurer kubectl pour se connecter à AKS
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ env.AKS_RG }} \
+            --name ${{ env.AKS_CLUSTER }} \
+            --overwrite-existing
 
       # Mettre à jour les images dans les deployments K8s
       - name: Deploy services
@@ -110,7 +121,7 @@ jobs:
           SERVICES="user gateway media message"
           for SERVICE in $SERVICES; do
             kubectl set image deployment/${SERVICE}-service \
-              ${SERVICE}-service=${{ env.ECR_REGISTRY }}/storm-${SERVICE}:${{ github.sha }} \
+              ${SERVICE}-service=${{ env.ACR_LOGIN_SERVER }}/storm-${SERVICE}:${{ github.sha }} \
               -n storm
           done
 
