@@ -23,21 +23,22 @@ func NewHub() *Hub {
 
 // StartNatsSubscription écoute les messages NATS pour les redistribuer aux clients WS.
 func (h *Hub) StartNatsSubscription(nc *nats.Conn) error {
-	// On écoute sur message.broadcast.* pour recevoir les messages destinés à n'importe quelle room.
-	_, err := nc.Subscribe("message.broadcast.*", func(m *nats.Msg) {
-		// Le sujet est formaté comme message.broadcast.ROOM_ID
+	// On écoute sur message.broadcast.> pour recevoir les messages destinés à n'importe quelle room.
+	// Le joker '>' permet de matcher plusieurs niveaux (ex: message.broadcast.group:123 ou message.broadcast.user.abc)
+	_, err := nc.Subscribe("message.broadcast.>", func(m *nats.Msg) {
 		parts := strings.Split(m.Subject, ".")
 		if len(parts) < 3 {
 			return
 		}
-		roomID := parts[2]
+		// On rejoint toutes les parties après "message.broadcast" au cas où la room contient des points
+		roomID := strings.Join(parts[2:], ".")
 
 		log.Printf("[Hub] Message reçu de NATS pour la room %s", roomID)
 		h.BroadcastToRoom(roomID, m.Data)
 	})
 
 	if err == nil {
-		log.Println("[Hub] Abonnement NATS aux sujets message.broadcast.* actif")
+		log.Println("[Hub] Abonnement NATS aux sujets message.broadcast.> actif")
 	}
 	return err
 }

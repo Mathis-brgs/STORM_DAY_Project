@@ -8,6 +8,7 @@ RUN CGO_ENABLED=0 go build -o /app/gateway-service ./cmd/main.go
 
 FROM alpine:3.19
 RUN apk --no-cache add ca-certificates
-COPY --from=build /app/gateway-service /gateway-service
+# Copy the binary from the build stage (relative to the WORKDIR of the build stage)
+COPY --from=build /app/services/gateway/gateway-service /gateway-service
 EXPOSE 8080
 CMD ["/gateway-service"]
