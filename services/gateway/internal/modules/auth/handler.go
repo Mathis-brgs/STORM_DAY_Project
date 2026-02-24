@@ -50,9 +50,9 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	// 1. Validate Token to get User ID
 	// ✅ Wrapper NestJS requis : { pattern, data, id }
 	valRequest := struct {
-		Pattern string      `json:"pattern"`
-		Data    any `json:"data"`
-		ID      string      `json:"id"`
+		Pattern string `json:"pattern"`
+		Data    any    `json:"data"`
+		ID      string `json:"id"`
 	}{
 		Pattern: "auth.validate",
 		Data:    map[string]string{"token": token},
@@ -83,9 +83,9 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	// 2. Call Logout with User ID
 	// Wrapper NestJS requis : { pattern, data, id }
 	logoutRequest := struct {
-		Pattern string      `json:"pattern"`
-		Data    any `json:"data"`
-		ID      string      `json:"id"`
+		Pattern string `json:"pattern"`
+		Data    any    `json:"data"`
+		ID      string `json:"id"`
 	}{
 		Pattern: "auth.logout",
 		Data:    map[string]string{"userId": valResult.User.ID},
@@ -121,9 +121,9 @@ func proxyRequest(nc *nats.Conn, subject string, w http.ResponseWriter, r *http.
 	// "id" is required for it to be treated as a Request-Response, otherwise it's an Event.
 	reqID := time.Now().String() // Simple unique ID
 	request := struct {
-		Pattern string      `json:"pattern"`
-		Data    any `json:"data"`
-		ID      string      `json:"id"`
+		Pattern string `json:"pattern"`
+		Data    any    `json:"data"`
+		ID      string `json:"id"`
 	}{
 		Pattern: subject,
 		Data:    body,

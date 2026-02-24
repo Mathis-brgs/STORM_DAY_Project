@@ -44,11 +44,11 @@ func (h *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 
 	switch msg.Action {
 
-	case models.ActionJoin:
+	case models.WSActionJoin:
 		h.hub.Join(msg.Room, socket)
 		socket.Session().Store("room", msg.Room)
 
-	case models.ActionMessage:
+	case models.WSActionMessage:
 		h.hub.BroadcastToRoom(msg.Room, message.Bytes())
 
 		err := h.nats.Publish("NEW_MESSAGE", message.Bytes())
