@@ -7,7 +7,7 @@ import (
 	apiv1 "github.com/Mathis-brgs/storm-project/services/message/api/v1"
 	"github.com/Mathis-brgs/storm-project/services/message/internal/models"
 	"github.com/Mathis-brgs/storm-project/services/message/internal/service"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"github.com/nats-io/nats.go"
 )
 
