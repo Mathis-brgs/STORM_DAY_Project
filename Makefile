@@ -21,7 +21,7 @@ down:
 clean:
 	k3d cluster delete $(CLUSTER_NAME)
 
-# Build toutes les images Docker
+# Build toutes les images Docker (même cible que la CI : une seule commande local = CI)
 # Note: On utilise :latest pour coller à la variable IMAGES
 build:
 	docker build -t storm/user-service:latest services/user/
@@ -56,9 +56,11 @@ logs-media:
 
 # --- Migrations & Seeds (dev local avec Docker Compose) ---
 
-# Migrations DB Message
+# Migrations DB Message (001 = tables, 003 = messages, 004 = groups.user_id uuid)
 migrate-message:
 	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/001_create_tables.sql
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/003_messages_uuid.sql
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/004_groups_user_id_uuid.sql
 
 # Seed DB Message (groups + messages)
 seed-message:

@@ -4,14 +4,10 @@ import (
 	"encoding/json"
 	"gateway/internal/models"
 	"log"
-	"strconv"
-	"strings"
 	"time"
 
-	apiv1 "github.com/Mathis-brgs/storm-project/services/message/api/v1"
 	"github.com/lxzan/gws"
 	"github.com/nats-io/nats.go"
-	"google.golang.org/protobuf/proto"
 )
 
 type Handler struct {
@@ -70,66 +66,19 @@ func (h *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
 		return
 	}
 
-	userId, _ := socket.Session().Load("userId")
-
 	switch msg.Action {
 
-	case models.ActionJoin:
+	case models.WSActionJoin:
 		h.hub.Join(msg.Room, socket)
 		socket.Session().Store("room", msg.Room)
 
-	case models.ActionMessage:
-		// Sécurité : on impose l'ID de l'utilisateur authentifié
-		if userId != nil {
-			msg.User = userId.(string)
-		}
+	case models.WSActionMessage:
+		h.hub.BroadcastToRoom(msg.Room, message.Bytes())
 
-		// On extrait l'ID du groupe de la room (ex: "group:123")
-		// On suppose que le format est stable
-		roomParts := strings.Split(msg.Room, ":")
-		if len(roomParts) < 2 || roomParts[0] != "group" {
-			log.Printf("Format de room invalide pour un message : %s", msg.Room)
-			return
-		}
-
-		groupID, err := strconv.Atoi(roomParts[1])
+		err := h.nats.Publish("NEW_MESSAGE", message.Bytes())
 		if err != nil {
-			log.Printf("ID de groupe invalide dans la room %s : %v", msg.Room, err)
-			return
+			log.Printf("Erreur publication sur NATS : %v", err)
 		}
-
-		senderID, _ := strconv.Atoi(msg.User)
-
-		// Pour un message permanent, on passe par le message-service
-		// Le message-service se chargera de diffuser le message (broadcast) via NATS
-		// une fois sauvegardé, ce qui évitera les doublons.
-		protoReq := &apiv1.SendMessageRequest{
-			GroupId:  int32(groupID),
-			SenderId: int32(senderID),
-			Content:  msg.Content,
-		}
-
-		protoData, err := proto.Marshal(protoReq)
-		if err != nil {
-			log.Printf("Erreur marshal proto : %v", err)
-			return
-		}
-
-		err = h.nats.Publish("NEW_MESSAGE", protoData)
-		if err != nil {
-			log.Printf("Erreur publication sur NATS (NEW_MESSAGE) : %v", err)
-		}
-
-	case models.ActionTyping:
-		if userId != nil {
-			msg.User = userId.(string)
-		}
-		finalPayload, _ := json.Marshal(msg)
-
-		// On ne diffuse PLUS en local (hub.BroadcastToRoom) ici.
-		// On utilise exclusivement NATS pour la diffusion (fan-out).
-		// Le Hub écoute "message.broadcast.>" et redistribuera à tout le monde.
-		_ = h.nats.Publish("message.broadcast."+msg.Room, finalPayload)
 
 	default:
 		log.Printf("Action inconnue : %s", msg.Action)

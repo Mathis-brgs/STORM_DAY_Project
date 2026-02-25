@@ -2,33 +2,53 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"os"
+	"strings"
 
+	natsh "github.com/Mathis-brgs/storm-project/services/message/internal/nats"
+	"github.com/Mathis-brgs/storm-project/services/message/internal/repo"
+	"github.com/Mathis-brgs/storm-project/services/message/internal/repo/memory"
+	"github.com/Mathis-brgs/storm-project/services/message/internal/repo/postgres"
+	"github.com/Mathis-brgs/storm-project/services/message/internal/service"
 	"github.com/nats-io/nats.go"
 )
 
 func main() {
-	natsURL := os.Getenv("NATS_URL")
-	if natsURL == "" {
-		natsURL = nats.DefaultURL
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.Println("message starting...")
+
+	url := os.Getenv("NATS_URL")
+	if url == "" {
+		url = nats.DefaultURL
 	}
-	nc, err := nats.Connect(natsURL)
+
+	nc, err := nats.Connect(url, nats.Name("message"))
 	if err != nil {
-		log.Printf("Erreur NATS: %v", err)
+		log.Fatalf("nats connect: %v", err)
+	}
+	defer nc.Drain()
+
+	var messageRepo repo.MessageRepo
+	if strings.ToLower(os.Getenv("STORAGE")) == "postgres" {
+		db, err := postgres.NewDB()
+		if err != nil {
+			log.Fatalf("postgres connect: %v", err)
+		}
+		defer db.Close()
+		messageRepo = postgres.NewMessageRepo(db)
+		log.Println("storage: postgres")
 	} else {
-		defer nc.Close()
-		log.Printf("Message Service connecté à NATS sur %s", natsURL)
+		messageRepo = memory.NewMessageRepo()
+		log.Println("storage: memory")
 	}
 
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
+	svc := service.NewMessageService(messageRepo)
+	handler := natsh.NewMessageHandler(svc)
 
-	addr := ":8080"
-	log.Printf("Message Service démarré sur %s", addr)
-	if err := http.ListenAndServe(addr, nil); err != nil {
-		log.Fatal(err)
+	if err := handler.Listen(nc); err != nil {
+		log.Fatalf("listen: %v", err)
 	}
+
+	log.Println("ready, listening on NATS")
+	select {}
 }

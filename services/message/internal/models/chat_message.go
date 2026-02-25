@@ -1,14 +1,18 @@
 package models
 
-import "time"
+import (
+	"time"
 
-// ChatMessage est la structure d'un message de discussion (attachments gérés par media-service)
+	"github.com/google/uuid"
+)
+
+// ChatMessage : id (PK int), sender_id (UUID), group_id (int).
 type ChatMessage struct {
-	ID        int        `json:"id"`
-	SenderID  int        `json:"sender_id"`
-	Content   string     `json:"content"`
-	GroupID   int        `json:"group_id"`
-	CreatedAt time.Time  `json:"created_at"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID        int       `json:"id"`
+	SenderID  uuid.UUID `json:"sender_id"`
+	GroupID   int       `json:"group_id"`
+	Content   string    `json:"content"`
+	Attachment string   `json:"attachment,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
