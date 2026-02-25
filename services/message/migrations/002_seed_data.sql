@@ -1,28 +1,24 @@
 -- Seed DB Message (storm_message_db)
--- Users 1-5 : certains assignés à des groupes, d'autres non
--- Role: 0=member, 1=admin, 2=owner
+-- groups : user_id = UUID, group_id = int
+-- messages : sender_id = UUID, group_id = int
 
--- Groups (memberships) - qui est dans quel groupe
--- Groupe 1 : alice (1), bob (2), charlie (3)
--- Groupe 2 : alice (1), bob (2)
--- Groupe 3 : diana (4), eve (5)
--- User 6 : aucun groupe (pour tester un user non assigné)
+-- Groups (memberships) - user_id en UUID de démo, group_id int
 INSERT INTO groups (user_id, group_id, role) VALUES
-  (1, 1, 2),  -- alice owner groupe 1
-  (2, 1, 0),  -- bob member groupe 1
-  (3, 1, 0),  -- charlie member groupe 1
-  (1, 2, 2),  -- alice owner groupe 2
-  (2, 2, 0),  -- bob member groupe 2
-  (4, 3, 2),  -- diana owner groupe 3
-  (5, 3, 0)   -- eve member groupe 3
+  ('a0000001-0000-0000-0000-000000000001', 1, 2),
+  ('a0000002-0000-0000-0000-000000000002', 1, 0),
+  ('a0000003-0000-0000-0000-000000000003', 1, 0),
+  ('a0000001-0000-0000-0000-000000000001', 2, 2),
+  ('a0000002-0000-0000-0000-000000000002', 2, 0),
+  ('a0000004-0000-0000-0000-000000000004', 3, 2),
+  ('a0000005-0000-0000-0000-000000000005', 3, 0)
 ;
 
--- Messages de test
+-- Messages de test : sender_id UUID, group_id int
 INSERT INTO messages (sender_id, content, group_id) VALUES
-  (1, 'Bienvenue dans le groupe 1 !', 1),
-  (2, 'Merci alice !', 1),
-  (3, 'Salut tout le monde', 1),
-  (1, 'Conversation privée avec bob', 2),
-  (2, 'Oui, juste nous deux ici', 2),
-  (4, 'Groupe 3 - équipe projet', 3),
-  (5, 'Parfait, on commence quand ?', 3);
+  ('a0000001-0000-0000-0000-000000000001', 'Bienvenue dans le groupe 1 !', 1),
+  ('a0000002-0000-0000-0000-000000000002', 'Merci alice !', 1),
+  ('a0000003-0000-0000-0000-000000000003', 'Salut tout le monde', 1),
+  ('a0000001-0000-0000-0000-000000000001', 'Conversation privée avec bob', 2),
+  ('a0000002-0000-0000-0000-000000000002', 'Oui, juste nous deux ici', 2),
+  ('a0000004-0000-0000-0000-000000000004', 'Groupe 3 - équipe projet', 3),
+  ('a0000005-0000-0000-0000-000000000005', 'Parfait, on commence quand ?', 3);
