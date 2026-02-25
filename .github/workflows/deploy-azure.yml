@@ -77,15 +77,21 @@ jobs:
       - name: Login to ACR
         run: az acr login --name ${{ secrets.ACR_NAME }}
 
-      # Build et push l'image Docker
+      # Build et push (même logique que Makefile : gateway = context racine)
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: services/${{ matrix.service }}
-          push: true
-          tags: |
-            ${{ env.ACR_LOGIN_SERVER }}/storm-${{ matrix.service }}:${{ github.sha }}
-            ${{ env.ACR_LOGIN_SERVER }}/storm-${{ matrix.service }}:latest
+        run: |
+          if [ "${{ matrix.service }}" = "gateway" ]; then
+            docker build -f services/gateway/Dockerfile \
+              -t ${{ env.ACR_LOGIN_SERVER }}/storm-gateway:${{ github.sha }} \
+              -t ${{ env.ACR_LOGIN_SERVER }}/storm-gateway:latest .
+          else
+            docker build \
+              -t ${{ env.ACR_LOGIN_SERVER }}/storm-${{ matrix.service }}:${{ github.sha }} \
+              -t ${{ env.ACR_LOGIN_SERVER }}/storm-${{ matrix.service }}:latest \
+              services/${{ matrix.service }}/
+          fi
+          docker push ${{ env.ACR_LOGIN_SERVER }}/storm-${{ matrix.service }}:${{ github.sha }}
+          docker push ${{ env.ACR_LOGIN_SERVER }}/storm-${{ matrix.service }}:latest
 
   # ============================================================================
   # Job 2 : Deploy sur AKS

@@ -10,7 +10,7 @@ import (
 
 	apiv1 "github.com/Mathis-brgs/storm-project/services/message/api/v1"
 	"github.com/go-chi/chi/v5"
-	"github.com/golang/protobuf/proto" //nolint:staticcheck // message-service utilise l'ancien proto
+	"google.golang.org/protobuf/proto"
 	"github.com/nats-io/nats.go"
 )
 

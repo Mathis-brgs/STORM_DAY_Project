@@ -21,7 +21,7 @@ down:
 clean:
 	k3d cluster delete $(CLUSTER_NAME)
 
-# Build toutes les images Docker
+# Build toutes les images Docker (même cible que la CI : une seule commande local = CI)
 # Note: On utilise :latest pour coller à la variable IMAGES
 build:
 	docker build -t storm/user-service:latest services/user/
