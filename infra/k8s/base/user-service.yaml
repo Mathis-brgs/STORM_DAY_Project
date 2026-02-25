@@ -21,9 +21,15 @@ spec:
             - containerPort: 3000
           env:
             - name: DB_HOST
-              value: postgres-user
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: DB_HOST_USER
             - name: DB_PORT
-              value: "5432"
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: DB_PORT
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
@@ -37,9 +43,15 @@ spec:
             - name: DB_NAME
               value: user_db
             - name: NATS_URL
-              value: nats://nats:4222
+              valueFrom:
+                configMapKeyRef:
+                  name: storm-config
+                  key: NATS_URL
             - name: JWT_SECRET
-              value: storm-secret-key
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: JWT_SECRET
           readinessProbe:
             httpGet:
               path: /

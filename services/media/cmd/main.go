@@ -2,17 +2,19 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/Mathis-brgs/storm-project/services/media/internal/handlers"
 	"github.com/Mathis-brgs/storm-project/services/media/internal/service"
 	"github.com/Mathis-brgs/storm-project/services/media/internal/storage"
 	"github.com/Mathis-brgs/storm-project/services/media/internal/subscribers"
 	"github.com/nats-io/nats.go"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// j'ai modifier la fonction main pour ajouter la configuration de nats et minio via les variables d'environnement, parce que je n'arrivais pas a lancer des tests K6
 func main() {
 	natsURL := os.Getenv("NATS_URL")
 	if natsURL == "" {
@@ -23,17 +25,24 @@ func main() {
 		}
 	}
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	bucket := os.Getenv("MINIO_BUCKET")
 	if bucket == "" {
 		bucket = "media"
 	}
 
+	// Connexion NATS
 	nc, err := nats.Connect(natsURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer nc.Close()
 
+	// Client S3/MinIO
 	minioClient, err := storage.NewMinIOClient(bucket)
 	if err != nil {
 		log.Fatal(err)
@@ -41,11 +50,24 @@ func main() {
 
 	mediaService := service.NewMediaService(minioClient)
 
+	// Démarrer les subscribers NATS
 	if err := subscribers.StartMediaSubscribers(nc, mediaService); err != nil {
 		log.Fatal(err)
 	}
+	log.Printf("NATS subscribers actifs sur: %s", natsURL)
 
-	log.Printf("Media service listening on NATS: %s", natsURL)
+	// Démarrer le serveur HTTP (handlers + metrics)
+	mux := http.NewServeMux()
+	handler := handlers.NewMediaHandler(mediaService)
+	handler.RegisterRoutes(mux)
+	mux.Handle("/metrics", promhttp.Handler())
+
+	go func() {
+		log.Printf("HTTP server démarré sur :%s", port)
+		if err := http.ListenAndServe(":"+port, mux); err != nil {
+			log.Fatalf("HTTP server error: %v", err)
+		}
+	}()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)

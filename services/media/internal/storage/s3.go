@@ -16,6 +16,22 @@ import (
 type MinIOClient struct {
 	client     *s3.Client
 	bucketName string
+	endpoint   string
+}
+
+// Endpoint retourne l'URL de base MinIO (ex: http://localhost:9000)
+func (s *MinIOClient) Endpoint() string {
+	return s.endpoint
+}
+
+// BucketName retourne le nom du bucket
+func (s *MinIOClient) BucketName() string {
+	return s.bucketName
+}
+
+// GetFileURL retourne l'URL publique d'un objet
+func (s *MinIOClient) GetFileURL(key string) string {
+	return fmt.Sprintf("%s/%s/%s", s.endpoint, s.bucketName, key)
 }
 
 // NewMinIOClient initialise la connexion à MinIO via le SDK AWS v2 (compatible S3).
@@ -43,6 +59,7 @@ func NewMinIOClient(bucketName string) (*MinIOClient, error) {
 	return &MinIOClient{
 		client:     client,
 		bucketName: bucketName,
+		endpoint:   "http://" + endpoint,
 	}, nil
 }
 
