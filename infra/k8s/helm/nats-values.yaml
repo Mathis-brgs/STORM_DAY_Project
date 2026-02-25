@@ -1,0 +1,58 @@
+# ==============================================================================
+# NATS Cluster 3 nœuds — Helm values
+# ==============================================================================
+#
+# Chart officiel : nats/nats (https://nats-io.github.io/k8s/helm/charts/)
+#
+# Installation :
+#   helm repo add nats https://nats-io.github.io/k8s/helm/charts/
+#   helm repo update
+#   helm install nats nats/nats \
+#     --namespace storm \
+#     --create-namespace \
+#     -f infra/k8s/helm/nats-values.yaml
+#
+# Mise à jour :
+#   helm upgrade nats nats/nats --namespace storm -f infra/k8s/helm/nats-values.yaml
+#
+# Désinstallation :
+#   helm uninstall nats --namespace storm
+#
+# ==============================================================================
+
+config:
+  # Cluster NATS — 3 nœuds pour la haute disponibilité
+  cluster:
+    enabled: true
+    replicas: 3
+
+  # JetStream — persistance des messages
+  jetstream:
+    enabled: true
+    fileStore:
+      pvc:
+        size: 5Gi
+        storageClassName: ""   # laisser vide pour utiliser le storage class par défaut
+
+  # Monitoring — expose /metrics sur le port 8222
+  websocket:
+    enabled: false
+
+# Ressources pour chaque pod NATS
+nats:
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "200m"
+
+# Prometheus ServiceMonitor (si Prometheus Operator installé)
+promExporter:
+  enabled: true
+  port: 7777
+
+# NATS box (pod de debug pour tester le cluster)
+natsbox:
+  enabled: false

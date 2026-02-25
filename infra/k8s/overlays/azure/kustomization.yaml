@@ -1,15 +1,18 @@
 # ==============================================================================
-# KUSTOMIZE OVERLAY - Azure
+# KUSTOMIZE OVERLAY - AZURE (AKS)
 # ==============================================================================
 #
 # Cet overlay surcharge la config de base pour Azure.
-# Il remplace les services locaux (postgres, redis, minio) par :
-#   - Azure Database for PostgreSQL
-#   - Azure Cache for Redis
-#   - Azure Blob Storage
+# Il remplace les services locaux (postgres, redis, minio) par les services
+# Azure managés (Azure DB for PostgreSQL, Azure Cache for Redis, Azure Blob).
 #
 # Usage :
 #   kubectl apply -k infra/k8s/overlays/azure
+#
+# Prérequis :
+#   - Cluster AKS provisionné via Terraform (infra/terraform/environments/dev)
+#   - Images poussées sur ACR (Azure Container Registry)
+#   - Fichier secrets-azure.yaml rempli avec les valeurs réelles
 #
 # ==============================================================================
 
@@ -18,35 +21,42 @@ kind: Kustomization
 
 namespace: storm
 
+# On hérite des ressources de base nécessaires
+# On exclut postgres, redis, minio → remplacés par Azure managed services
 resources:
   - ../../base/namespace.yaml
-  - ../../base/nats.yaml         # NATS reste dans le cluster
+  - ../../base/nats.yaml             # NATS reste dans le cluster AKS
   - ../../base/gateway-service.yaml
   - ../../base/user-service.yaml
   - ../../base/message-service.yaml
   - ../../base/media-service.yaml
+  - ../../base/notification-service.yaml
+  - ../../base/hpa.yaml
   - secrets-azure.yaml
 
-# On ne déploie PAS postgres, redis, minio en Azure
-# → On utilise PostgreSQL Flexible, Azure Redis, Azure Blob à la place
+# On NE déploie PAS : postgres-user, postgres-message, redis, minio
+# → Remplacés par Azure Database for PostgreSQL, Azure Cache for Redis, Azure Blob
 
-# Surcharger les images avec celles d'ACR
-# Remplace ACR_NAME par le nom de ton Azure Container Registry
+# Surcharger les images avec celles d'ACR (Azure Container Registry)
+# Format : <registry>.azurecr.io/<image>:<tag>
 images:
-  - name: storm/user-service
-    newName: ACR_NAME.azurecr.io/storm-user
-    newTag: latest
   - name: storm/gateway-service
-    newName: ACR_NAME.azurecr.io/storm-gateway
+    newName: REPLACE_ACR_NAME.azurecr.io/storm-gateway
+    newTag: latest
+  - name: storm/user-service
+    newName: REPLACE_ACR_NAME.azurecr.io/storm-user
     newTag: latest
   - name: storm/media-service
-    newName: ACR_NAME.azurecr.io/storm-media
+    newName: REPLACE_ACR_NAME.azurecr.io/storm-media
     newTag: latest
   - name: storm/message-service
-    newName: ACR_NAME.azurecr.io/storm-message
+    newName: REPLACE_ACR_NAME.azurecr.io/storm-message
+    newTag: latest
+  - name: storm/notification-service
+    newName: REPLACE_ACR_NAME.azurecr.io/storm-notification
     newTag: latest
 
-# Patcher le user-service pour utiliser PostgreSQL Azure + Redis Azure
+# Patcher le user-service pour utiliser Azure DB for PostgreSQL + Azure Redis
 patches:
   - target:
       kind: Deployment
@@ -59,26 +69,26 @@ patches:
             valueFrom:
               secretKeyRef:
                 name: azure-credentials
-                key: DB_HOST
+                key: PG_HOST
           - name: DB_PORT
             value: "5432"
           - name: DB_USER
             valueFrom:
               secretKeyRef:
                 name: azure-credentials
-                key: DB_USER
+                key: PG_USERNAME
           - name: DB_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: azure-credentials
-                key: DB_PASSWORD
+                key: PG_PASSWORD
           - name: DB_NAME
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: DB_NAME
+            value: user_db
           - name: NATS_URL
-            value: nats://nats:4222
+            valueFrom:
+              configMapKeyRef:
+                name: storm-config
+                key: NATS_URL
           - name: JWT_SECRET
             valueFrom:
               secretKeyRef:
@@ -89,3 +99,124 @@ patches:
               secretKeyRef:
                 name: azure-credentials
                 key: REDIS_URL
+
+  # Patcher le message-service pour Azure DB for PostgreSQL
+  - target:
+      kind: Deployment
+      name: message-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: DB_HOST
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: PG_HOST
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: PG_USERNAME
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: PG_PASSWORD
+          - name: DB_NAME
+            value: message_db
+          - name: NATS_URL
+            valueFrom:
+              configMapKeyRef:
+                name: storm-config
+                key: NATS_URL
+
+  # Patcher le media-service pour Azure Blob Storage
+  - target:
+      kind: Deployment
+      name: media-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: NATS_URL
+            valueFrom:
+              configMapKeyRef:
+                name: storm-config
+                key: NATS_URL
+          - name: MINIO_ENDPOINT
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: AZURE_BLOB_ENDPOINT
+          - name: MINIO_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: AZURE_STORAGE_ACCOUNT
+          - name: MINIO_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: AZURE_STORAGE_KEY
+          - name: MINIO_BUCKET
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: AZURE_BLOB_CONTAINER
+
+  # Patcher le notification-service pour Azure Redis
+  - target:
+      kind: Deployment
+      name: notification-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: NATS_URL
+            valueFrom:
+              configMapKeyRef:
+                name: storm-config
+                key: NATS_URL
+          - name: REDIS_ADDR
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: REDIS_URL
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: REDIS_PASSWORD
+
+  # Patcher le gateway-service
+  - target:
+      kind: Deployment
+      name: gateway-service
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: NATS_URL
+            valueFrom:
+              configMapKeyRef:
+                name: storm-config
+                key: NATS_URL
+          - name: USER_SERVICE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: storm-config
+                key: USER_SERVICE_URL
+
+  # Changer le type de service gateway en LoadBalancer Azure
+  - target:
+      kind: Service
+      name: gateway-service
+    patch: |
+      - op: replace
+        path: /spec/type
+        value: LoadBalancer
+      - op: remove
+        path: /spec/ports/0/nodePort
