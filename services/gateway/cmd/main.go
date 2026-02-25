@@ -140,4 +140,5 @@ func SetupServer(nc common.NatsConn) *chi.Mux {
 	if err := http.ListenAndServe(addr, r); err != nil {
 		log.Fatal(err)
 	}
+	return r
 }
