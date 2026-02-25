@@ -43,12 +43,12 @@ func main() {
 	defer nc.Close()
 
 	// Client S3/MinIO
-	s3Client, err := storage.NewS3Client(bucket)
+	minioClient, err := storage.NewMinIOClient(bucket)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	mediaService := service.NewMediaService(s3Client)
+	mediaService := service.NewMediaService(minioClient)
 
 	// Démarrer les subscribers NATS
 	if err := subscribers.StartMediaSubscribers(nc, mediaService); err != nil {

@@ -2,10 +2,14 @@ module gateway
 
 go 1.25.6
 
+replace github.com/Mathis-brgs/storm-project/services/message => ../message
+
 require (
+	github.com/Mathis-brgs/storm-project/services/message v0.0.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/lxzan/gws v1.8.9
 	github.com/nats-io/nats.go v1.48.0
+	google.golang.org/protobuf v1.36.11
 )
 
 require (

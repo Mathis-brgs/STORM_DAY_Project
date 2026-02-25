@@ -1,158 +1,169 @@
 # ==============================================================================
-# ENVIRONNEMENT DEV - Point d'entrée Terraform
+# ENVIRONNEMENT DEV - Point d'entrée Terraform Azure
 # ==============================================================================
-#
-# Ce fichier assemble tous les modules pour créer l'infrastructure de dev.
 #
 # Pour déployer :
 #   cd infra/terraform/environments/dev
-#   terraform init      # Première fois seulement
-#   terraform plan      # Voir ce qui va être créé
-#   terraform apply     # Créer l'infrastructure
+#   tofu init      # Première fois seulement
+#   tofu plan      # Voir ce qui va être créé
+#   tofu apply     # Créer l'infrastructure
+#
+# Prérequis :
+#   az login
+#   az account set --subscription <SUBSCRIPTION_ID>
 #
 # ==============================================================================
-
-# ------------------------------------------------------------------------------
-# Configuration Terraform
-# ------------------------------------------------------------------------------
 
 terraform {
   required_version = ">= 1.0.0"
 
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
     }
   }
 
-  # Backend S3 pour stocker l'état (à activer plus tard)
-  # backend "s3" {
-  #   bucket         = "storm-terraform-state"
-  #   key            = "dev/terraform.tfstate"
-  #   region         = "eu-west-3"
-  #   encrypt        = true
-  #   dynamodb_table = "storm-terraform-locks"
+  # Backend Azure Blob Storage pour stocker l'état Terraform (à activer plus tard)
+  # backend "azurerm" {
+  #   resource_group_name  = "storm-terraform-state"
+  #   storage_account_name = "stormtfstate"
+  #   container_name       = "tfstate"
+  #   key                  = "dev/terraform.tfstate"
   # }
 }
 
+provider "azurerm" {
+  features {}
+  subscription_id = var.subscription_id
+}
+
 # ------------------------------------------------------------------------------
-# Provider AWS
+# Resource Group
 # ------------------------------------------------------------------------------
 
-provider "aws" {
-  region = var.aws_region
+resource "azurerm_resource_group" "main" {
+  name     = "${var.project_name}-${var.environment}"
+  location = var.location
 
-  default_tags {
-    tags = {
-      Project     = var.project_name
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-    }
+  tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "Terraform"
   }
 }
 
 # ------------------------------------------------------------------------------
-# Module VPC
+# Module VNet
 # ------------------------------------------------------------------------------
 
-module "vpc" {
-  source = "../../modules/vpc"
+module "vnet" {
+  source = "../../modules/vnet"
 
-  project_name       = var.project_name
-  environment        = var.environment
-  vpc_cidr           = var.vpc_cidr
-  availability_zones = var.availability_zones
+  project_name        = var.project_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  vnet_cidr           = var.vnet_cidr
+  public_subnet_cidrs = var.public_subnet_cidrs
+  private_subnet_cidr = var.private_subnet_cidr
 }
 
 # ------------------------------------------------------------------------------
-# Module Security Groups
+# Module NSG
 # ------------------------------------------------------------------------------
 
-module "security_groups" {
-  source = "../../modules/security-groups"
+module "nsg" {
+  source = "../../modules/nsg"
 
-  project_name = var.project_name
-  environment  = var.environment
-  vpc_id       = module.vpc.vpc_id
-  vpc_cidr     = module.vpc.vpc_cidr
+  project_name        = var.project_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  vnet_cidr           = module.vnet.vnet_cidr
 }
 
 # ------------------------------------------------------------------------------
-# Module RDS PostgreSQL
+# Module PostgreSQL Flexible Server
 # ------------------------------------------------------------------------------
 
-module "rds" {
-  source = "../../modules/rds"
+module "postgresql" {
+  source = "../../modules/postgresql"
 
-  project_name       = var.project_name
-  environment        = var.environment
-  private_subnet_ids = module.vpc.private_subnet_ids
-  security_group_id  = module.security_groups.rds_security_group_id
+  project_name        = var.project_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
 
-  # Configuration
-  postgres_version  = "15.4"
-  instance_class    = "db.t3.micro"  # Plus petit, ~$15/mois
-  allocated_storage = 20
-  database_name     = "storm"
-  master_username   = var.db_username
-  master_password   = var.db_password
-  multi_az          = false  # Pas de HA en dev
+  subnet_id           = module.vnet.private_postgresql_subnet_id
+  private_dns_zone_id = module.vnet.postgresql_private_dns_zone_id
+
+  postgres_version = "15"
+  sku_name         = "B_Standard_B1ms"  # ~$12/mois
+  storage_mb       = 32768
+
+  db_username = var.db_username
+  db_password = var.db_password
 }
 
 # ------------------------------------------------------------------------------
-# Module ElastiCache Redis
+# Module Redis
 # ------------------------------------------------------------------------------
 
-module "elasticache" {
-  source = "../../modules/elasticache"
+module "redis" {
+  source = "../../modules/redis"
 
-  project_name       = var.project_name
-  environment        = var.environment
-  private_subnet_ids = module.vpc.private_subnet_ids
-  security_group_id  = module.security_groups.redis_security_group_id
+  project_name        = var.project_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
 
-  # Configuration
-  redis_version      = "7.0"
-  node_type          = "cache.t3.micro"  # Plus petit, ~$12/mois
-  num_cache_clusters = 1                 # Pas de réplication en dev
+  capacity      = 0      # C0 = 250 MB
+  family        = "C"
+  sku_name      = "Basic"  # ~$16/mois
+  redis_version = "7"
 }
 
 # ------------------------------------------------------------------------------
-# Module S3
+# Module Storage (Azure Blob Storage)
 # ------------------------------------------------------------------------------
 
-module "s3" {
-  source = "../../modules/s3"
+module "storage" {
+  source = "../../modules/storage"
 
   project_name         = var.project_name
   environment          = var.environment
-  cors_allowed_origins = ["*"]  # A restreindre en prod
+  location             = var.location
+  resource_group_name  = azurerm_resource_group.main.name
+  storage_account_name = var.storage_account_name
+  cors_allowed_origins = ["*"]
 }
 
 # ------------------------------------------------------------------------------
-# Module IAM
+# Module Managed Identity
 # ------------------------------------------------------------------------------
 
-module "iam" {
-  source = "../../modules/iam"
+module "managed_identity" {
+  source = "../../modules/managed-identity"
 
-  project_name   = var.project_name
-  environment    = var.environment
-  s3_bucket_arns = [
-    module.s3.avatars_bucket_arn,
-    module.s3.media_bucket_arn
-  ]
+  project_name        = var.project_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  storage_account_id  = module.storage.storage_account_id
 }
 
 # ------------------------------------------------------------------------------
-# Module Budget (alertes de coûts - GRATUIT)
+# Module Budget (alertes de coût - GRATUIT)
 # ------------------------------------------------------------------------------
 
 module "budget" {
   source = "../../modules/budget"
 
   project_name         = var.project_name
+  environment          = var.environment
+  resource_group_id    = azurerm_resource_group.main.id
   monthly_budget_limit = var.monthly_budget_limit
   alert_emails         = var.alert_emails
+  budget_start_date    = var.budget_start_date
 }

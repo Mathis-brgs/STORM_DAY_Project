@@ -8,6 +8,39 @@ build/
 *.out
 *.test
 *.exe
+*.dll
+*.so
+*.dylib
+
+# --- Message-service ---
+services/message/message-service
+services/message/message
+services/message/main
+services/message/github.com/
+# Code temporaire (gateway/user/media) - ne pas committer
+services/message/_local/
+
+# --- Gateway (en développement par l'équipe) ---
+services/gateway/gateway
+services/gateway/gateway-service
+
+# --- User-service (NestJS, en développement) ---
+services/user/dist/
+services/user/coverage/
+services/user/.npm/
+services/user/*.tsbuildinfo
+
+# --- Media-service (en développement) ---
+services/media/media
+services/media/media-service
+
+# --- Notification (en développement) ---
+services/notification/notification
+services/notification/notification-service
+
+# --- Make / Cache ---
+.make/
+*.mk.tmp
 
 # Environment
 .env
@@ -42,6 +75,8 @@ Thumbs.db
 .terraform/
 *.tfvars
 !*.tfvars.example
-.terraform.lock.hcl
 crash.log
 *.tfplan
+
+# Plans de travail quotidiens (locaux uniquement)
+PLAN_*.md

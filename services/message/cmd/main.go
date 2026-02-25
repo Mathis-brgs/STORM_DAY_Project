@@ -2,38 +2,53 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
+	"strings"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	natsh "github.com/Mathis-brgs/storm-project/services/message/internal/nats"
+	"github.com/Mathis-brgs/storm-project/services/message/internal/repo"
+	"github.com/Mathis-brgs/storm-project/services/message/internal/repo/memory"
+	"github.com/Mathis-brgs/storm-project/services/message/internal/repo/postgres"
+	"github.com/Mathis-brgs/storm-project/services/message/internal/service"
+	"github.com/nats-io/nats.go"
 )
 
 func main() {
-	natsURL := os.Getenv("NATS_URL")
-	if natsURL == "" {
-		natsURL = "nats://localhost:4222"
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.Println("message starting...")
+
+	url := os.Getenv("NATS_URL")
+	if url == "" {
+		url = nats.DefaultURL
 	}
 
-	log.Printf("Message service démarré — NATS: %s", natsURL)
+	nc, err := nats.Connect(url, nats.Name("message"))
+	if err != nil {
+		log.Fatalf("nats connect: %v", err)
+	}
+	defer nc.Drain()
 
-	// Serveur HTTP pour Prometheus /metrics
-	go func() {
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-		mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
-		log.Println("Message metrics disponibles sur :8080/metrics")
-		if err := http.ListenAndServe(":8080", mux); err != nil {
-			log.Printf("Erreur serveur metrics: %v", err)
+	var messageRepo repo.MessageRepo
+	if strings.ToLower(os.Getenv("STORAGE")) == "postgres" {
+		db, err := postgres.NewDB()
+		if err != nil {
+			log.Fatalf("postgres connect: %v", err)
 		}
-	}()
+		defer db.Close()
+		messageRepo = postgres.NewMessageRepo(db)
+		log.Println("storage: postgres")
+	} else {
+		messageRepo = memory.NewMessageRepo()
+		log.Println("storage: memory")
+	}
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
+	svc := service.NewMessageService(messageRepo)
+	handler := natsh.NewMessageHandler(svc)
 
-	log.Println("Message service arrêté")
+	if err := handler.Listen(nc); err != nil {
+		log.Fatalf("listen: %v", err)
+	}
+
+	log.Println("ready, listening on NATS")
+	select {}
 }

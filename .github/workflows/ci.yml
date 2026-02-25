@@ -7,13 +7,61 @@ on:
     branches: [main, develop]
 
 jobs:
-  build-nestjs:
-    name: Build NestJS (User Service)
+  build:
+    name: Build (Makefile = single source of truth)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build all images (same as local make build)
+        run: make build
+
+  test-nestjs:
+    name: Test & Lint NestJS (User Service)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/user
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: services/user/package-lock.json
+      - run: npm ci
+      - run: npm run test
+      - run: npm run lint
+
+  test-nestjs-integration:
+    name: Integration Tests (User Service)
     runs-on: ubuntu-latest
 
     defaults:
       run:
         working-directory: services/user
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: storm
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: storm_user_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: storm
+      DB_PASSWORD: password
+      DB_NAME: storm_user_db
+      JWT_SECRET: storm-secret-key
 
     steps:
       - uses: actions/checkout@v4
@@ -25,44 +73,7 @@ jobs:
           cache-dependency-path: services/user/package-lock.json
 
       - run: npm ci
-      - run: npm run build
-      - run: npm run lint
-
-  build-go:
-    name: Build Go Services
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.25.6"
-          cache-dependency-path: |
-            pkg/go.sum
-            services/gateway/go.sum
-            services/media/go.sum
-            services/message/go.sum
-
-      - name: Build shared package
-        run: go build ./...
-        working-directory: pkg
-
-      - name: Build gateway
-        run: go build -o gateway ./cmd/main.go
-        working-directory: services/gateway
-
-      - name: Build media
-        run: go build -o media ./cmd/main.go
-        working-directory: services/media
-
-      - name: Build message
-        run: go build -o message ./cmd/main.go
-        working-directory: services/message
-
-      # - name: Build notification
-      #   run: go build ./cmd/...
-      #   working-directory: services/notification
+      - run: npm run test:e2e
 
   lint-go:
     name: Lint Go Services

@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package message.v1;
+
+option go_package = "github.com/Mathis-brgs/storm-project/services/message/api/v1;apiv1";
+
+// SendMessageRequest est le payload reçu sur NEW_MESSAGE
+message SendMessageRequest {
+  int32 group_id = 1;
+  string sender_id = 2;   // UUID
+  string content = 3;
+  string attachment = 4; // optionnel
+}
+
+// ChatMessage représente un message persisté
+message ChatMessage {
+  int32 id = 1;           // PK row
+  string sender_id = 2;   // UUID
+  int32 group_id = 3;
+  string content = 4;
+  string attachment = 5;
+  int64 created_at = 6;  // Unix timestamp
+  int64 updated_at = 7;
+}
+
+// Error dans la réponse
+message Error {
+  string code = 1;
+  string message = 2;
+}
+
+// SendMessageResponse enveloppe la réponse
+message SendMessageResponse {
+  bool ok = 1;
+  ChatMessage data = 2;
+  Error error = 3;
+}
+
+// GetMessage - message par ID
+message GetMessageRequest {
+  int32 id = 1;
+}
+
+// GetMessageResponse enveloppe la réponse
+message GetMessageResponse {
+  bool ok = 1;
+  ChatMessage data = 2;
+  Error error = 3;
+}
+
+// ListMessages - liste paginnée par Group ID
+message ListMessagesRequest {
+  int32 group_id = 1;
+  int32 limit = 2;
+  string cursor = 3;
+}
+
+// ListMessagesResponse enveloppe la réponse
+message ListMessagesResponse {
+  bool ok = 1;
+  repeated ChatMessage data = 2;
+  string next_cursor = 3;
+  Error error = 4;
+}
+
+// UpdateMessageRequest est le payload reçu sur UPDATE_MESSAGE
+message UpdateMessageRequest {
+  int32 id = 1;
+  string content = 2;
+}
+
+// UpdateMessageResponse enveloppe la réponse
+message UpdateMessageResponse {
+  bool ok = 1;
+  ChatMessage data = 2;
+  Error error = 3;
+}
+
+// DeleteMessageRequest est le payload reçu sur DELETE_MESSAGE
+message DeleteMessageRequest {
+  int32 id = 1;
+}
+
+// DeleteMessageResponse enveloppe la réponse
+message DeleteMessageResponse {
+  bool ok = 1;
+  Error error = 2;
+}
