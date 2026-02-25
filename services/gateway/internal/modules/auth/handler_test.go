@@ -40,7 +40,10 @@ func TestHandler_Register(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	if err != nil {
+		t.Errorf("Error unmarshalling response: %v", err)
+	}
 	if resp["username"] != "testuser" {
 		t.Errorf("Expected username testuser, got %v", resp["username"])
 	}

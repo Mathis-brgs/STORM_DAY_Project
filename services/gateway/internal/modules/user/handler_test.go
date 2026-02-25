@@ -43,7 +43,10 @@ func TestHandler_Get(t *testing.T) {
 	}
 
 	var res map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &res)
+	err := json.Unmarshal(w.Body.Bytes(), &res)
+	if err != nil {
+		t.Errorf("Error unmarshalling response: %v", err)
+	}
 	if res["id"] != "user-123" {
 		t.Errorf("Expected id user-123, got %v", res["id"])
 	}
