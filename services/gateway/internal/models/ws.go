@@ -4,6 +4,7 @@ package models
 const (
 	WSActionJoin    = "join"
 	WSActionMessage = "message"
+	WSActionTyping  = "typing"
 )
 
 // InputMessage est le payload JSON envoyé par le client sur le WebSocket
