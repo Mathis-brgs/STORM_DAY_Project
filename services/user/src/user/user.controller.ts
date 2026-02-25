@@ -16,4 +16,9 @@ export class UserController {
   update(data: { id: string; userId: string; dto: UpdateUserDto }) {
     return this.userService.update(data.id, data.userId, data.dto);
   }
+
+  @MessagePattern('user.search')
+  search(data: { query: string }) {
+    return this.userService.search(data.query);
+  }
 }

@@ -9,18 +9,20 @@ import (
 // User définit l'utilisateur qui traverse tout le système
 type User struct {
 	ID           uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
-	Username     string    `json:"username" gorm:"not null"`
+	Username     string    `json:"username" gorm:"uniqueIndex;not null"`
+	DisplayName  string    `json:"display_name" gorm:"column:display_name;not null"`
 	Email        string    `json:"email" gorm:"uniqueIndex;not null"`
 	PasswordHash string    `json:"-" gorm:"column:password_hash;not null"`
 	AvatarURL    string    `json:"avatar_url" gorm:"type:text"`
 }
 
 // NewUser crée un User avec un UUIDv7
-func NewUser(username, email, passwordHash string) User {
+func NewUser(username, displayName, email, passwordHash string) User {
 	id, _ := uuid.NewV7()
 	return User{
 		ID:           id,
 		Username:     username,
+		DisplayName:  displayName,
 		Email:        email,
 		PasswordHash: passwordHash,
 	}

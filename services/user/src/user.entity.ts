@@ -12,8 +12,11 @@ export class User {
   @PrimaryColumn({ type: 'uuid' })
   id: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', unique: true })
   username: string;
+
+  @Column({ type: 'varchar' })
+  display_name: string;
 
   @Column({ type: 'varchar', unique: true })
   email: string;

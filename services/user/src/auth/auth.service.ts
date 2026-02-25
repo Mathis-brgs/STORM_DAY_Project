@@ -39,6 +39,7 @@ export class AuthService {
 
     const user = this.userRepo.create({
       username: dto.username,
+      display_name: dto.display_name,
       email: dto.email,
       password_hash: await bcrypt.hash(dto.password, 10),
     });
@@ -46,7 +47,12 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
     return {
-      user: { id: user.id, username: user.username, email: user.email },
+      user: {
+        id: user.id,
+        username: user.username,
+        display_name: user.display_name,
+        email: user.email,
+      },
       ...tokens,
     };
   }
@@ -67,7 +73,12 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user);
     return {
-      user: { id: user.id, username: user.username, email: user.email },
+      user: {
+        id: user.id,
+        username: user.username,
+        display_name: user.display_name,
+        email: user.email,
+      },
       ...tokens,
     };
   }
@@ -83,7 +94,12 @@ export class AuthService {
       }
       return {
         valid: true,
-        user: { id: user.id, username: user.username, email: user.email },
+        user: {
+          id: user.id,
+          username: user.username,
+          display_name: user.display_name,
+          email: user.email,
+        },
       };
     } catch {
       return { valid: false };

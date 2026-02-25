@@ -34,6 +34,7 @@ describe('AuthService', () => {
   const mockUser: User = {
     id: 'user-uuid-1',
     username: 'testuser',
+    display_name: 'Test User',
     email: 'test@example.com',
     password_hash: 'hashed_password',
     avatar_url: null as unknown as string,
@@ -64,6 +65,7 @@ describe('AuthService', () => {
       await expect(
         service.register({
           username: 'testuser',
+          display_name: 'Test User',
           email: 'test@example.com',
           password: '123456',
         }),
@@ -81,6 +83,7 @@ describe('AuthService', () => {
 
       const result = await service.register({
         username: 'testuser',
+        display_name: 'Test User',
         email: 'test@example.com',
         password: '123456',
       });
