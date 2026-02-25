@@ -59,7 +59,10 @@ func TestHub(t *testing.T) {
 			},
 		}
 
-		hub.StartNatsSubscription(mockNats)
+		err := hub.StartNatsSubscription(mockNats)
+		if err != nil {
+			t.Fatalf("Failed to start NATS subscription: %v", err)
+		}
 		socket := &MockSocket{addr: "1"}
 		hub.Join("group:123", socket)
 
@@ -89,7 +92,10 @@ func TestHub(t *testing.T) {
 				return &nats.Subscription{}, nil
 			},
 		}
-		hub.StartNatsSubscription(mockNats)
+		err := hub.StartNatsSubscription(mockNats)
+		if err != nil {
+			t.Fatalf("Failed to start NATS subscription: %v", err)
+		}
 
 		handler(&nats.Msg{Subject: "too.short"}) // Should handle < 3 parts
 	})

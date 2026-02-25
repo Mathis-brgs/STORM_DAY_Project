@@ -125,12 +125,16 @@ func (s *MockSession) Len() int {
 }
 
 type MockMessage struct {
-	payload []byte
-	closed  bool
+	payload   []byte
+	closed    bool
+	closeFunc func() error
 }
 
 func (m *MockMessage) Bytes() []byte { return m.payload }
 func (m *MockMessage) Close() error {
 	m.closed = true
+	if m.closeFunc != nil {
+		return m.closeFunc()
+	}
 	return nil
 }

@@ -3,7 +3,10 @@ package ws
 import (
 	"encoding/json"
 	"gateway/internal/models"
+	"net"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/nats-io/nats.go"
 )
@@ -34,11 +37,6 @@ func TestHandler_OnPing(t *testing.T) {
 	payload := []byte("ping")
 
 	handler.onPing(socket, payload)
-
-	if socket.WriteCount != 0 { // WritePong doesn't use WriteMessage usually in gws,
-		// but in our mock we should check if WritePong was called.
-		// Wait, WritePong in MockSocket is just a stub.
-	}
 }
 
 func TestHandler_OnClose(t *testing.T) {
@@ -214,19 +212,51 @@ func TestHandler_OnMessage_UnknownAction(t *testing.T) {
 func TestHandler_OnOpen_Heartbeat(t *testing.T) {
 	hub := NewHub()
 	handler := NewHandler(hub, &MockNatsConn{})
+	handler.HeartbeatInterval = 10 * time.Millisecond
 
-	var pingCalled bool
+	var pingCalled int
+	var mu sync.Mutex
 	socket := &MockSocket{
 		addr: "1",
 		pingFunc: func(payload []byte) error {
-			pingCalled = true
+			mu.Lock()
+			pingCalled++
+			mu.Unlock()
 			return nil
 		},
 	}
 
 	handler.onOpen(socket)
-	// We can't easily wait for the goroutine ticker in a unit test
-	// without refactoring the ticker itself to be mockable or using a shorter duration.
-	// But we can at least suppress the lint and verify the check if we could.
-	_ = pingCalled
+
+	// Wait for at least one ping
+	time.Sleep(25 * time.Millisecond)
+
+	mu.Lock()
+	if pingCalled == 0 {
+		t.Error("Heartbeat ping was not called")
+	}
+	mu.Unlock()
+
+	// Test write ping error to cover goroutine exit
+	socket.pingFunc = func(payload []byte) error {
+		return net.ErrClosed
+	}
+	time.Sleep(20 * time.Millisecond)
+}
+
+func TestHandler_OnMessage_CloseError(t *testing.T) {
+	handler := NewHandler(NewHub(), &MockNatsConn{})
+	socket := &MockSocket{}
+	msg := models.InputMessage{Action: models.WSActionJoin, Room: "r"}
+	payload, _ := json.Marshal(msg)
+
+	message := &MockMessage{
+		payload: payload,
+		closeFunc: func() error {
+			return net.ErrClosed
+		},
+	}
+
+	handler.onMessage(socket, message)
+	// Should log error and continue
 }

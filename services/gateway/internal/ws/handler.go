@@ -4,19 +4,28 @@ import (
 	"encoding/json"
 	"gateway/internal/models"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
+	apiv1 "github.com/Mathis-brgs/storm-project/services/message/api/v1"
 	"github.com/lxzan/gws"
+	"google.golang.org/protobuf/proto"
 )
 
 type Handler struct {
 	gws.BuiltinEventHandler
-	hub  *Hub
-	nats NatsConn
+	hub               *Hub
+	nats              NatsConn
+	HeartbeatInterval time.Duration
 }
 
 func NewHandler(hub *Hub, nats NatsConn) *Handler {
-	return &Handler{hub: hub, nats: nats}
+	return &Handler{
+		hub:               hub,
+		nats:              nats,
+		HeartbeatInterval: 30 * time.Second,
+	}
 }
 
 func (h *Handler) OnOpen(socket *gws.Conn) {
@@ -33,9 +42,9 @@ func (h *Handler) onOpen(socket Socket) {
 		h.hub.Join("user:"+userId.(string), socket)
 	}
 
-	// Démarrer le heartbeat (Ping toutes les 30s)
+	// Démarrer le heartbeat (Ping à intervalles configurables)
 	go func() {
-		ticker := time.NewTicker(30 * time.Second)
+		ticker := time.NewTicker(h.HeartbeatInterval)
 		defer ticker.Stop()
 		for range ticker.C {
 			if err := socket.WritePing(nil); err != nil {
@@ -88,12 +97,50 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 		socket.Session().Store("room", msg.Room)
 
 	case models.WSActionMessage:
-		h.hub.BroadcastToRoom(msg.Room, message.Bytes())
-
-		err := h.nats.Publish("NEW_MESSAGE", message.Bytes())
-		if err != nil {
-			log.Printf("Erreur publication sur NATS : %v", err)
+		userId, _ := socket.Session().Load("userId")
+		// Sécurité : on impose l'ID de l'utilisateur authentifié
+		if userId != nil {
+			msg.User = userId.(string)
 		}
+
+		// On extrait l'ID du groupe de la room (ex: "group:123")
+		roomParts := strings.Split(msg.Room, ":")
+		if len(roomParts) < 2 || roomParts[0] != "group" {
+			log.Printf("Format de room invalide pour un message : %s", msg.Room)
+			return
+		}
+
+		groupID, err := strconv.Atoi(roomParts[1])
+		if err != nil {
+			log.Printf("ID de groupe invalide dans la room %s : %v", msg.Room, err)
+			return
+		}
+
+		// Pour un message permanent, on passe par le message-service
+		protoReq := &apiv1.SendMessageRequest{
+			GroupId:  int32(groupID),
+			SenderId: msg.User,
+			Content:  msg.Content,
+		}
+
+		protoData, err := proto.Marshal(protoReq)
+		if err != nil {
+			log.Printf("Erreur marshal proto : %v", err)
+			return
+		}
+
+		err = h.nats.Publish("NEW_MESSAGE", protoData)
+		if err != nil {
+			log.Printf("Erreur publication sur NATS (NEW_MESSAGE) : %v", err)
+		}
+
+	case models.WSActionTyping:
+		userId, _ := socket.Session().Load("userId")
+		if userId != nil {
+			msg.User = userId.(string)
+		}
+		finalPayload, _ := json.Marshal(msg)
+		_ = h.nats.Publish("message.broadcast."+msg.Room, finalPayload)
 
 	default:
 		log.Printf("Action inconnue : %s", msg.Action)
