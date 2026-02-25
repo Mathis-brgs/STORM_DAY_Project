@@ -101,7 +101,7 @@ jobs:
         working-directory: services/media
 
       - name: Build message
-        run: go build -o message ./cmd/message-service/
+        run: go build -o message-service ./cmd/message-service/main.go
         working-directory: services/message
 
       # - name: Build notification
