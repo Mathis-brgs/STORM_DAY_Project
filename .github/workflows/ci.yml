@@ -25,8 +25,52 @@ jobs:
           cache-dependency-path: services/user/package-lock.json
 
       - run: npm ci
+      - run: npm run test
       - run: npm run build
       - run: npm run lint
+
+  test-nestjs-integration:
+    name: Integration Tests (User Service)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: services/user
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: storm
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: storm_user_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: storm
+      DB_PASSWORD: password
+      DB_NAME: storm_user_db
+      JWT_SECRET: storm-secret-key
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: services/user/package-lock.json
+
+      - run: npm ci
+      - run: npm run test:e2e
 
   build-go:
     name: Build Go Services

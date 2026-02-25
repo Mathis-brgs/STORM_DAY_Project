@@ -3,6 +3,7 @@ module github.com/Mathis-brgs/storm-project/services/message
 go 1.25.6
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.11.2
 	github.com/nats-io/nats.go v1.48.0
 	google.golang.org/protobuf v1.36.11

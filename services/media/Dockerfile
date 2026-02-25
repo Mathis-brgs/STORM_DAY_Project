@@ -1,12 +1,11 @@
 FROM golang:1.25-alpine AS build
 WORKDIR /app
-COPY go.mod go.sum* ./
-RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /app/media-service ./cmd/main.go
+WORKDIR /app/services/media
+RUN CGO_ENABLED=0 go build -o media-service ./cmd/main.go
 
 FROM alpine:3.19
 RUN apk --no-cache add ca-certificates
-COPY --from=build /app/media-service /media-service
+COPY --from=build /app/services/media/media-service /media-service
 EXPOSE 8080
 CMD ["/media-service"]

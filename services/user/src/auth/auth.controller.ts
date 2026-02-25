@@ -6,14 +6,13 @@ import { LoginDto } from './dto/login.dto.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   // ── NATS Endpoints ────────────────────────────────────
   // (Remplacent les endpoints HTTP)
 
   @MessagePattern('auth.register')
   register(dto: RegisterDto) {
-    console.log('User Service received auth.register:', dto);
     return this.authService.register(dto);
   }
 
@@ -39,10 +38,7 @@ export class AuthController {
   // Le Gateway envoie un JWT pour le valider
   // Retourne : { valid: true, user: {...} } ou { valid: false }
   @MessagePattern('auth.validate')
-  async handleValidateToken(data: { token: string }) {
-    console.log('[NATS] auth.validate called with:', data);
-    const result = await this.authService.validateToken(data.token);
-    console.log('[NATS] auth.validate result:', result);
-    return result;
+  handleValidateToken(data: { token: string }) {
+    return this.authService.validateToken(data.token);
   }
 }

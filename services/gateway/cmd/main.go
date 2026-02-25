@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -20,14 +21,27 @@ func main() {
 	if natsURL == "" {
 		natsURL = nats.DefaultURL
 	}
-	nc, err := nats.Connect(natsURL)
+	var nc *nats.Conn
+	var err error
+	for i := 0; i < 10; i++ {
+		nc, err = nats.Connect(natsURL)
+		if err == nil {
+			break
+		}
+		log.Printf("Tentative de connexion à NATS (%d/10) échouée: %v. Nouvel essai dans 5s...", i+1, err)
+		time.Sleep(5 * time.Second)
+	}
 	if err != nil {
-		log.Fatalf("Impossible de se connecter à NATS: %v", err)
+		log.Fatalf("Impossible de se connecter à NATS après plusieurs tentatives: %v", err)
 	}
 	defer nc.Close()
 	log.Printf("Connecté à NATS sur %s", natsURL)
 
 	hub := ws.NewHub()
+	if err := hub.StartNatsSubscription(nc); err != nil {
+		log.Fatalf("Impossible de démarrer l'abonnement NATS : %v", err)
+	}
+
 	handler := ws.NewHandler(hub, nc)
 	upgrader := gws.NewUpgrader(handler, nil)
 
@@ -69,11 +83,44 @@ func main() {
 	})
 
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
+		// 1. Extract Token (Query Param or Header)
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			token = r.Header.Get("Authorization")
+			if len(token) > 7 && token[:7] == "Bearer " {
+				token = token[7:]
+			}
+		}
+
+		if token == "" {
+			http.Error(w, "Unauthorized: missing token", http.StatusUnauthorized)
+			return
+		}
+
+		// 2. Validate Token via NATS
+		valResult, err := auth.ValidateToken(nc, token)
+		if err != nil {
+			log.Printf("Validation NATS Error: %v", err)
+			http.Error(w, "Authentication service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
+		if !valResult.Valid {
+			http.Error(w, "Unauthorized: invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		// 3. Upgrade et stockage en session
 		socket, err := upgrader.Upgrade(w, r)
 		if err != nil {
 			log.Printf("Erreur upgrade: %v", err)
 			return
 		}
+
+		// 4. Store user info in socket session
+		socket.Session().Store("userId", valResult.User.ID)
+		socket.Session().Store("username", valResult.User.Username)
+
 		go socket.ReadLoop()
 	})
 

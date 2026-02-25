@@ -36,7 +36,7 @@
 
 ```
 □ Ajouter endpoint POST /media/upload dans le media service HTTP
-□ Recevoir un fichier multipart, upload via S3Client existant
+□ Recevoir un fichier multipart, upload via MinIOClient existant
 □ Retourner l'URL du fichier uploadé
 □ Tester avec curl : curl -F "file=@image.png" http://localhost:8080/media/upload
 ```
@@ -94,18 +94,18 @@
 **Semaine 2 — Azure Infrastructure (migration depuis AWS)**
 
 ```
-✅ Terraform : init + structure folders (modules AWS écrits)
-⏳ Migration Terraform : provider azurerm (VNet, NSG, PostgreSQL Flexible, Redis, Blob Storage, Managed Identity)
-⏳ Terraform : modules Azure à réécrire
+✅ Terraform : init + structure folders (modules AWS écrits → migrés Azure)
+✅ Migration Terraform : provider azurerm (VNet, NSG, PostgreSQL Flexible, Redis, Blob Storage, Managed Identity)
+✅ Terraform : modules Azure réécrits (vnet, nsg, postgresql, redis, storage, managed-identity, budget)
 ⏳ Premier tofu apply sur Azure (en attente accès école)
 ```
 
 **Semaine 3 — CI/CD + Deploy Azure**
 
 ```
-⏳ CI/CD : Deploy sur Azure (GitHub Actions) — ECR→ACR, EKS→AKS
-⏳ Secrets K8s Azure (DB passwords, JWT secret, Blob Storage)
-⏳ Budget Azure : alertes de coûts (50%, 75%, 90%)
+✅ CI/CD : Deploy sur Azure (GitHub Actions) — ECR→ACR, EKS→AKS
+✅ Secrets K8s Azure (DB passwords, JWT secret, Blob Storage)
+✅ Budget Azure : alertes de coûts (50%, 75%, 90%)
 ⏳ Deploy Auth + User sur AKS (en attente accès école)
 ⏳ Vérifier services accessibles (en attente accès école)
 ```
@@ -120,7 +120,7 @@
 □ Auth/User : Optimisations performance
 □ Auth/User : Tests coverage >80%
 □ Terraform Azure : Outputs propres
-□ Documentation Terraform Azure (README)
+✅ Documentation Terraform Azure (README)
 □ Load testing Auth (avec P4)
 □ Profiling endpoints lents
 □ Fix bottlenecks identifiés
@@ -185,29 +185,29 @@
 ✅ Serveur HTTP basique (health + /)
 ✅ Dockerfile multi-stage
 ✅ Déployé sur K8s (NodePort 30080)
-□ Connexion WebSocket
-□ Intégration NATS
+✅ Connexion WebSocket
+✅ Intégration NATS
 □ Validation JWT
 ```
 
 **Jour 4 (Jeudi) — NATS + WebSocket**
 
 ```
-□ Install gorilla/websocket ou gws
-□ Connexion WebSocket basique (echo)
-□ Connexion NATS client
-□ Pub message sur NATS quand reçu de WebSocket
+✅ Install gorilla/websocket ou gws
+✅ Connexion WebSocket basique (echo)
+✅ Connexion NATS client
+✅ Pub message sur NATS quand reçu de WebSocket
 □ Tests connexion/déconnexion
 ```
 
 **Jour 5 (Vendredi) — JWT + Intégration**
 
 ```
-□ Valider JWT à la connexion WebSocket (appel Auth Service)
-□ Rejeter connexions non authentifiées
-□ Heartbeat toutes les 30s
-□ Typing indicator (via NATS)
-□ Intégration complète avec Auth + Message
+✅ Valider JWT à la connexion WebSocket (appel Auth Service)
+✅ Rejeter connexions non authentifiées
+✅ Heartbeat toutes les 30s
+✅ Typing indicator (via NATS)
+✅ Intégration complète avec Auth + Message
 □ Demo 17h
 ```
 
@@ -421,9 +421,9 @@
 
 ```
 ✅ Structure services/media/ avec Go
-✅ AWS SDK Go v2 client S3/MinIO (internal/storage/s3.go)
+✅ MinIOClient — client stockage local (internal/storage/s3.go) — AWS SDK v2 utilisé pour parler à MinIO
 ✅ Script test upload MinIO (cmd/media-test/main.go)
-✅ go.mod avec dépendances AWS SDK
+✅ go.mod avec AWS SDK v2 (pour MinIO local, compatible S3)
 ✅ cmd/main.go pour gateway, media, message (serveurs HTTP basiques)
 ✅ Makefile complet (up, down, clean, build, deploy, restart, status, logs)
 ✅ Branche git nettoyée
@@ -435,7 +435,7 @@
 **Jour 4 (Jeudi) — Media endpoints**
 
 ```
-□ Endpoint POST /media/upload (multipart → S3)
+□ Endpoint POST /media/upload (multipart → MinIO/Azure Blob)
 □ Validation type fichier (image, video)
 □ Retourner URL fichier uploadé
 □ Endpoint GET /media/:id

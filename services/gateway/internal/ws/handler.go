@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"gateway/internal/models"
 	"log"
+	"time"
 
 	"github.com/lxzan/gws"
 	"github.com/nats-io/nats.go"
@@ -20,8 +21,31 @@ func NewHandler(hub *Hub, nats *nats.Conn) *Handler {
 }
 
 func (h *Handler) OnOpen(socket *gws.Conn) {
-	log.Println("Nouvelle connexion socket établie (en attente de Join)")
+	userId, _ := socket.Session().Load("userId")
+	username, _ := socket.Session().Load("username")
+	log.Printf("Nouvelle connexion socket établie : %s (%s)", username, userId)
+
+	// Rejoindre automatiquement une room privée pour l'utilisateur
+	if userId != nil {
+		h.hub.Join("user:"+userId.(string), socket)
+	}
+
+	// Démarrer le heartbeat (Ping toutes les 30s)
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := socket.WritePing(nil); err != nil {
+				return
+			}
+		}
+	}()
 }
+
+func (h *Handler) OnPing(socket *gws.Conn, payload []byte) {
+	_ = socket.WritePong(payload)
+}
+
 func (h *Handler) OnClose(socket *gws.Conn, err error) {
 	if roomName, exist := socket.Session().Load("room"); exist {
 		h.hub.Leave(roomName.(string), socket)
