@@ -7,20 +7,23 @@ import (
 	"time"
 
 	"github.com/lxzan/gws"
-	"github.com/nats-io/nats.go"
 )
 
 type Handler struct {
 	gws.BuiltinEventHandler
 	hub  *Hub
-	nats *nats.Conn
+	nats NatsConn
 }
 
-func NewHandler(hub *Hub, nats *nats.Conn) *Handler {
+func NewHandler(hub *Hub, nats NatsConn) *Handler {
 	return &Handler{hub: hub, nats: nats}
 }
 
 func (h *Handler) OnOpen(socket *gws.Conn) {
+	h.onOpen(socket)
+}
+
+func (h *Handler) onOpen(socket Socket) {
 	userId, _ := socket.Session().Load("userId")
 	username, _ := socket.Session().Load("username")
 	log.Printf("Nouvelle connexion socket établie : %s (%s)", username, userId)
@@ -43,16 +46,28 @@ func (h *Handler) OnOpen(socket *gws.Conn) {
 }
 
 func (h *Handler) OnPing(socket *gws.Conn, payload []byte) {
+	h.onPing(socket, payload)
+}
+
+func (h *Handler) onPing(socket Socket, payload []byte) {
 	_ = socket.WritePong(payload)
 }
 
 func (h *Handler) OnClose(socket *gws.Conn, err error) {
+	h.onClose(socket, err)
+}
+
+func (h *Handler) onClose(socket Socket, err error) {
 	if roomName, exist := socket.Session().Load("room"); exist {
 		h.hub.Leave(roomName.(string), socket)
 	}
 }
 
 func (h *Handler) OnMessage(socket *gws.Conn, message *gws.Message) {
+	h.onMessage(socket, message)
+}
+
+func (h *Handler) onMessage(socket Socket, message WSMessage) {
 	defer func() {
 		err := message.Close()
 		if err != nil {
