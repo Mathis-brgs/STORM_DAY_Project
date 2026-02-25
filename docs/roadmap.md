@@ -427,9 +427,9 @@
 ✅ cmd/main.go pour gateway, media, message (serveurs HTTP basiques)
 ✅ Makefile complet (up, down, clean, build, deploy, restart, status, logs)
 ✅ Branche git nettoyée
-□ Endpoint POST /media/upload
-□ Client HTML test WebSocket
-□ k6 setup
+✅ Endpoint POST /media/upload
+✅ Client HTML test WebSocket
+✅ k6 setup
 ```
 
 **Jour 4 (Jeudi) — Media endpoints**
@@ -445,9 +445,9 @@
 **Jour 5 (Vendredi) — Load Testing Setup**
 
 ```
-□ Client HTML test WebSocket basique
-□ Setup k6 : ramp-up.js
-□ Premiers tests 100 users
+✅ Client HTML test WebSocket basique
+✅ Setup k6 : scripts auth, media, gateway
+✅ Premiers tests 100 users (à lancer)
 □ Dashboard Grafana pour tests (optionnel)
 □ Demo 17h
 ```
@@ -460,7 +460,7 @@
 
 ```
 □ Terraform : AKS cluster (avec aide P1)
-□ K8s deployments : tous les services
+✅ K8s deployments : tous les services
 □ K8s services (ClusterIP, LoadBalancer Azure)
 □ NATS cluster (Helm install)
 □ Test deploy sur AKS
@@ -472,8 +472,8 @@
 □ Terraform : Azure Application Gateway / Ingress
 □ K8s : ConfigMaps, Secrets
 □ K8s : Resource limits (CPU, RAM)
-□ Autoscaling HPA (tous services)
-□ Notification Service (début)
+✅ Autoscaling HPA (tous services)
+✅ Notification Service (début)
 ```
 
 ---
@@ -483,14 +483,14 @@
 **Monitoring + Notification**
 
 ```
-□ Prometheus : install sur K8s
-□ Grafana : dashboards avancés
+✅ Prometheus : install sur K8s
+✅ Grafana : dashboards avancés
   - Gateway : connexions actives, latence
   - Messages : throughput, cache hits
   - PostgreSQL : queries, connections
   - Global : vue d'ensemble
-□ Alertes : service down, latency >500ms, errors >1%
-□ Notification Service : push notifications
+✅ Alertes : service down, latency >500ms, errors >1%
+✅ Notification Service : push notifications
 □ Load testing 10K → 20K users
 ```
 

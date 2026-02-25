@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STORM - Test Client</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+        h1 { color: #00d4ff; margin-bottom: 20px; }
+        h2 { color: #00d4ff; margin: 20px 0 10px; font-size: 1.1em; }
+
+        .section { background: #16213e; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+
+        /* WebSocket */
+        #ws-status { padding: 4px 12px; border-radius: 12px; font-size: 0.85em; }
+        .connected { background: #00c853; color: #000; }
+        .disconnected { background: #ff1744; color: #fff; }
+
+        input, button, select { padding: 8px 14px; border-radius: 6px; border: 1px solid #333; background: #0f3460; color: #eee; font-size: 0.9em; }
+        button { cursor: pointer; background: #00d4ff; color: #000; font-weight: 600; border: none; }
+        button:hover { background: #00b8d9; }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        #ws-url { width: 300px; }
+        #ws-message { width: 400px; }
+        #chat-log { background: #0a0a1a; border-radius: 6px; padding: 12px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.85em; margin-top: 10px; }
+        .log-entry { padding: 2px 0; border-bottom: 1px solid #1a1a3e; }
+        .log-sent { color: #00d4ff; }
+        .log-received { color: #00e676; }
+        .log-error { color: #ff1744; }
+        .log-info { color: #ffc107; }
+
+        /* Upload */
+        #upload-result { background: #0a0a1a; border-radius: 6px; padding: 12px; margin-top: 10px; font-family: monospace; font-size: 0.85em; min-height: 40px; }
+        #media-url { width: 400px; }
+        .row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+    <h1>STORM - Test Client</h1>
+
+    <!-- WebSocket Section -->
+    <div class="section">
+        <h2>WebSocket</h2>
+        <div class="row">
+            <input type="text" id="ws-url" value="ws://localhost:8080/ws" placeholder="WebSocket URL">
+            <button id="ws-connect-btn" onclick="wsConnect()">Connecter</button>
+            <button id="ws-disconnect-btn" onclick="wsDisconnect()" disabled>Deconnecter</button>
+            <span id="ws-status" class="disconnected">Disconnected</span>
+        </div>
+        <div class="row">
+            <input type="text" id="ws-message" placeholder="Message a envoyer..." onkeypress="if(event.key==='Enter')wsSend()">
+            <button onclick="wsSend()" id="ws-send-btn" disabled>Envoyer</button>
+        </div>
+        <div id="chat-log"></div>
+    </div>
+
+    <!-- Media Upload Section -->
+    <div class="section">
+        <h2>Media Upload (POST /media/upload)</h2>
+        <div class="row">
+            <input type="text" id="media-url" value="http://localhost:8080/media/upload" placeholder="Upload URL">
+        </div>
+        <div class="row">
+            <input type="file" id="file-input" accept="image/*,video/*">
+            <button onclick="uploadFile()">Upload</button>
+        </div>
+        <div id="upload-result">En attente d'upload...</div>
+    </div>
+
+    <!-- Media Get Section -->
+    <div class="section">
+        <h2>Media Get (GET /media/:id)</h2>
+        <div class="row">
+            <input type="text" id="media-id" placeholder="media/1234_filename.jpg" style="width:400px">
+            <button onclick="getMedia()">Recuperer</button>
+        </div>
+        <div id="get-result"></div>
+    </div>
+
+    <script>
+        let ws = null;
+
+        function logChat(msg, type) {
+            const log = document.getElementById('chat-log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry log-' + type;
+            const time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] ${msg}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function setWsState(connected) {
+            const status = document.getElementById('ws-status');
+            status.textContent = connected ? 'Connected' : 'Disconnected';
+            status.className = connected ? 'connected' : 'disconnected';
+            document.getElementById('ws-connect-btn').disabled = connected;
+            document.getElementById('ws-disconnect-btn').disabled = !connected;
+            document.getElementById('ws-send-btn').disabled = !connected;
+        }
+
+        function wsConnect() {
+            const url = document.getElementById('ws-url').value;
+            try {
+                ws = new WebSocket(url);
+                ws.onopen = () => { setWsState(true); logChat('Connecte a ' + url, 'info'); };
+                ws.onclose = () => { setWsState(false); logChat('Deconnecte', 'info'); };
+                ws.onerror = (e) => { logChat('Erreur WebSocket', 'error'); };
+                ws.onmessage = (e) => { logChat('< ' + e.data, 'received'); };
+            } catch (e) {
+                logChat('Erreur connexion: ' + e.message, 'error');
+            }
+        }
+
+        function wsDisconnect() {
+            if (ws) { ws.close(); ws = null; }
+        }
+
+        function wsSend() {
+            const input = document.getElementById('ws-message');
+            if (ws && input.value) {
+                ws.send(input.value);
+                logChat('> ' + input.value, 'sent');
+                input.value = '';
+            }
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('file-input');
+            const resultDiv = document.getElementById('upload-result');
+            const url = document.getElementById('media-url').value;
+
+            if (!fileInput.files[0]) {
+                resultDiv.textContent = 'Selectionnez un fichier.';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            resultDiv.textContent = 'Upload en cours...';
+
+            try {
+                const res = await fetch(url, { method: 'POST', body: formData });
+                const data = await res.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+
+                if (data.key) {
+                    document.getElementById('media-id').value = data.key;
+                }
+            } catch (e) {
+                resultDiv.textContent = 'Erreur: ' + e.message;
+            }
+        }
+
+        function getMedia() {
+            const mediaId = document.getElementById('media-id').value;
+            const baseUrl = document.getElementById('media-url').value.replace('/media/upload', '');
+            if (!mediaId) return;
+            const url = baseUrl + '/media/' + mediaId;
+            window.open(url, '_blank');
+        }
+    </script>
+</body>
+</html>

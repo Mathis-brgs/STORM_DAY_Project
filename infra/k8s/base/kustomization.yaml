@@ -6,6 +6,7 @@ namespace: storm
 resources:
   - namespace.yaml
   - secrets.yaml
+  - configmap.yaml
   # Infrastructure
   - postgres-user.yaml
   - postgres-message.yaml
@@ -17,3 +18,8 @@ resources:
   - user-service.yaml
   - message-service.yaml
   - media-service.yaml
+  - notification-service.yaml
+  # Monitoring
+  - monitoring.yaml
+  # Autoscaling
+  - hpa.yaml
