@@ -2,18 +2,17 @@ package auth
 
 import (
 	"encoding/json"
+	"gateway/internal/common"
 	"log"
 	"net/http"
 	"time"
-
-	"github.com/nats-io/nats.go"
 )
 
 type Handler struct {
-	nc *nats.Conn
+	nc common.NatsConn
 }
 
-func NewHandler(nc *nats.Conn) *Handler {
+func NewHandler(nc common.NatsConn) *Handler {
 	return &Handler{nc: nc}
 }
 
@@ -54,7 +53,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	if !valResult.Valid {
+	if !valResult.IsValid {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -88,7 +87,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func proxyRequest(nc *nats.Conn, subject string, w http.ResponseWriter, r *http.Request) {
+func proxyRequest(nc common.NatsConn, subject string, w http.ResponseWriter, r *http.Request) {
 	var body any
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
