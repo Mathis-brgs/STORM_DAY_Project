@@ -30,9 +30,10 @@ export default function () {
   const regRes = http.post(
     `${BASE_URL}/auth/register`,
     JSON.stringify({
-      username: `smoke_${ts}`,
-      email:    `smoke_${ts}@storm.local`,
-      password: 'Storm1234!',
+      username:     `smoke_${ts}`,
+      display_name: `Smoke ${ts}`,
+      email:        `smoke_${ts}@storm.local`,
+      password:     'Storm1234!',
     }),
     { headers: { 'Content-Type': 'application/json' } }
   )

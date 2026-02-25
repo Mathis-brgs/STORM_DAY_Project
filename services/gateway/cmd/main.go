@@ -72,6 +72,7 @@ func SetupServer(nc common.NatsConn) *chi.Mux {
 	r.Post("/auth/logout", authHandler.Logout)
 
 	// User Routes
+	r.Get("/users/search", userHandler.Search)
 	r.Get("/users/{id}", userHandler.Get)
 	r.Put("/users/{id}", userHandler.Update)
 

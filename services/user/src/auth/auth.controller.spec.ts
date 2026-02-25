@@ -17,6 +17,7 @@ describe('AuthController', () => {
     user: {
       id: 'user-uuid-1',
       username: 'testuser',
+      display_name: 'Test User',
       email: 'test@example.com',
     },
     access_token: 'fake-access',
@@ -39,6 +40,7 @@ describe('AuthController', () => {
     it('délègue à authService.register et retourne le résultat', async () => {
       const dto = {
         username: 'testuser',
+        display_name: 'Test User',
         email: 'test@example.com',
         password: '123456',
       };
@@ -107,6 +109,7 @@ describe('AuthController', () => {
         user: {
           id: 'user-uuid-1',
           username: 'testuser',
+          display_name: 'Test User',
         },
       };
       mockAuthService.validateToken.mockResolvedValue(validateResult);

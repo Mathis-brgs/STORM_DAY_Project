@@ -44,9 +44,10 @@ export function setup() {
   http.post(
     `${BASE_URL}/auth/register`,
     JSON.stringify({
-      username: 'k6_media_tester',
-      email:    'k6_media@storm.local',
-      password: 'Storm1234!',
+      username:     'k6_media_tester',
+      display_name: 'K6 Media Tester',
+      email:        'k6_media@storm.local',
+      password:     'Storm1234!',
     }),
     { headers: { 'Content-Type': 'application/json' } }
   )
