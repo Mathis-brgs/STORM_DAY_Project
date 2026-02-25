@@ -286,6 +286,20 @@
 
 ## P3 - Message + Conversation Services
 
+### Avancement actuel (branches `chore/message-migrations` + `feat/message-crud`)
+
+```
+✅ Schema PostgreSQL : table messages (id int, sender_id uuid, group_id int, content, attachment)
+✅ Table groups (user_id uuid, group_id int, role) — prêt pour création groupes / rôles
+✅ Migrations 001-004 + Makefile (make migrate-message, make seed-message)
+✅ Message service : CRUD complet via NATS (NEW_MESSAGE, GET_MESSAGE, LIST_MESSAGES, UPDATE_MESSAGE, DELETE_MESSAGE)
+✅ Repo memory + postgres, point d'entrée cmd/main.go
+✅ Gateway : module message, routes REST /api/messages (POST, GET /:id, GET ?group_id=, PUT /:id, DELETE /:id)
+□ Prochaines étapes : création de groupes, gestion des rôles (membership)
+```
+
+---
+
 ### SEMAINE 1 (COURS)
 
 **Jour 1-3 — Setup (retard cours théoriques)**
@@ -293,34 +307,33 @@
 ```
 ✅ Structure services/message/ avec Go
 ✅ go.mod initialisé
-✅ cmd/main.go créé (placeholder Hello World)
+✅ cmd/main.go créé (point d'entrée NATS)
 ✅ Dockerfile multi-stage
 ✅ Déployé sur K8s (CrashLoopBackOff — normal, pas de serveur HTTP)
-□ Schema PostgreSQL (conversations, messages)
-□ Endpoints Message Service
+✅ Schema PostgreSQL (messages, groups)
+✅ Message Service : communication NATS uniquement (pas d’HTTP)
 ```
 
 **Jour 4 (Jeudi) — Schema DB + Conversation**
 
 ```
-□ Schema PostgreSQL :
-  - conversations table
-  - conversation_members table
-  - messages table
-□ Remplacer Hello World par serveur HTTP avec /health
-□ Connexion PostgreSQL
-□ POST /conversations (créer 1-to-1)
-□ GET /conversations (lister par user)
+✅ Schema PostgreSQL :
+  - groups table (user_id uuid, group_id int, role)
+  - messages table (id, sender_id uuid, group_id int, content, attachment)
+□ Remplacer par serveur HTTP avec /health (optionnel)
+✅ Connexion PostgreSQL (repo postgres)
+□ POST /conversations (créer 1-to-1) — à venir (création groupes)
+□ GET /conversations (lister par user) — à venir
 ```
 
 **Jour 5 (Vendredi) — Message Service**
 
 ```
-□ NATS subscriber "message.send"
-□ Valider user autorisé dans conversation
-□ Sauvegarder message PostgreSQL
-□ Publish NATS "message.broadcast.{room_id}"
-□ Historique messages (GET avec pagination)
+✅ NATS : NEW_MESSAGE (sauvegarder message)
+✅ NATS : GET_MESSAGE, LIST_MESSAGES, UPDATE_MESSAGE, DELETE_MESSAGE
+✅ Gateway : CRUD REST /api/messages (proxy NATS)
+□ Valider user autorisé dans conversation (après groupes/rôles)
+□ Publish NATS "message.broadcast.{room_id}" (optionnel)
 □ Demo 17h
 ```
 
@@ -333,10 +346,11 @@
 ```
 □ Messages non lus (compteur par user/conversation)
 □ Accusés de réception (✓✓)
-□ Éditer/Supprimer message
+✅ Éditer/Supprimer message (UPDATE_MESSAGE, DELETE_MESSAGE)
 □ Recherche messages (full-text search)
 □ Cache Redis : derniers 50 messages par room
 □ Tests coverage >70%
+□ Création de groupes + rôles (membership)
 ```
 
 ---
@@ -538,7 +552,7 @@
 ```
 P1 : User Service NestJS + Auth (register/login) + K8s infra ⏳
 P2 : Gateway Go + WebSocket + NATS ⏳
-P3 : Message + Conversation + PostgreSQL ⏳
+P3 : Message CRUD (NATS + Gateway) + PostgreSQL ✅ — groupes/rôles à venir
 P4 : Media S3/MinIO + Makefile + cmd stubs ⏳
 
 → Livrable : Chat basique qui marche en local (k3d)

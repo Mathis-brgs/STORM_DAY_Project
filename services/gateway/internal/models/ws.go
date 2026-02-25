@@ -1,11 +1,12 @@
 package models
 
+// Constantes pour les actions WebSocket
 const (
-	ActionJoin    = "join"
-	ActionMessage = "message"
-	ActionTyping  = "typing"
+	WSActionJoin    = "join"
+	WSActionMessage = "message"
 )
 
+// InputMessage est le payload JSON envoyé par le client sur le WebSocket
 type InputMessage struct {
 	Action  string `json:"action"`
 	Room    string `json:"room"`

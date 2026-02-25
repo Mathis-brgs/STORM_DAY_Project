@@ -1,8 +1,8 @@
 package main
 
 import (
-	"gateway/internal/api"
 	"gateway/internal/modules/auth"
+	"gateway/internal/modules/message"
 	"gateway/internal/modules/user"
 	"gateway/internal/ws"
 	"log"
@@ -47,6 +47,7 @@ func main() {
 
 	authHandler := auth.NewHandler(nc)
 	userHandler := user.NewHandler(nc)
+	messageHandler := message.NewHandler(nc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -63,7 +64,14 @@ func main() {
 	r.Put("/users/{id}", userHandler.Update)
 
 	// Message (proxy vers message-service)
-	r.Post("/api/messages", api.NewMessagesHandler(nc))
+	r.Post("/api/messages", messageHandler.Send)
+
+	r.Get("/api/messages/{id}", messageHandler.GetById)
+	r.Get("/api/messages", messageHandler.List)
+
+	r.Put("/api/messages/{id}", messageHandler.Update)
+
+	r.Delete("/api/messages/{id}", messageHandler.Delete)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
