@@ -3,6 +3,7 @@ package ws
 import (
 	"net"
 	"sync"
+	"time"
 
 	"github.com/lxzan/gws"
 	"github.com/nats-io/nats.go"
@@ -11,6 +12,7 @@ import (
 type MockNatsConn struct {
 	PublishFunc          func(subject string, data []byte) error
 	SubscribeFunc        func(subject string, cb nats.MsgHandler) (*nats.Subscription, error)
+	RequestFunc          func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error)
 	LastPublishedSubject string
 	LastPublishedData    []byte
 }
@@ -29,6 +31,13 @@ func (m *MockNatsConn) Subscribe(subject string, cb nats.MsgHandler) (*nats.Subs
 		return m.SubscribeFunc(subject, cb)
 	}
 	return &nats.Subscription{}, nil
+}
+
+func (m *MockNatsConn) Request(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
+	if m.RequestFunc != nil {
+		return m.RequestFunc(subject, data, timeout)
+	}
+	return &nats.Msg{}, nil
 }
 
 type MockAddr struct {

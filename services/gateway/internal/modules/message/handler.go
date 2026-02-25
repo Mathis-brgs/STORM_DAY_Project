@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/json"
+	"gateway/internal/common"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,7 +12,6 @@ import (
 	apiv1 "github.com/Mathis-brgs/storm-project/services/message/api/v1"
 	"github.com/go-chi/chi/v5"
 	"google.golang.org/protobuf/proto"
-	"github.com/nats-io/nats.go"
 )
 
 const (
@@ -28,10 +28,10 @@ const (
 )
 
 type Handler struct {
-	nc *nats.Conn
+	nc common.NatsConn
 }
 
-func NewHandler(nc *nats.Conn) *Handler {
+func NewHandler(nc common.NatsConn) *Handler {
 	return &Handler{nc: nc}
 }
 

@@ -2,19 +2,19 @@ package user
 
 import (
 	"encoding/json"
+	"gateway/internal/common"
 	"gateway/internal/modules/auth"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/nats-io/nats.go"
 )
 
 type Handler struct {
-	nc *nats.Conn
+	nc common.NatsConn
 }
 
-func NewHandler(nc *nats.Conn) *Handler {
+func NewHandler(nc common.NatsConn) *Handler {
 	return &Handler{nc: nc}
 }
 
@@ -71,7 +71,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	if !valResult.Valid {
+	if !valResult.IsValid {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}

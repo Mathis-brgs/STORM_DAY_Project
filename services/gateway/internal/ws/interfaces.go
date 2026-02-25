@@ -1,17 +1,14 @@
 package ws
 
 import (
+	"gateway/internal/common"
 	"net"
 
 	"github.com/lxzan/gws"
-	"github.com/nats-io/nats.go"
 )
 
-// NatsConn defines the subset of nats.Conn methods used by the WS package.
-type NatsConn interface {
-	Publish(subject string, data []byte) error
-	Subscribe(subject string, cb nats.MsgHandler) (*nats.Subscription, error)
-}
+// NatsConn is an alias for common.NatsConn for backwards compatibility within the ws package.
+type NatsConn = common.NatsConn
 
 // Socket defines the subset of gws.Conn methods used by the WS package.
 type Socket interface {

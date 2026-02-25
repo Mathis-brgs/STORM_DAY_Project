@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gateway/internal/common"
 	"gateway/internal/modules/auth"
 	"gateway/internal/modules/message"
 	"gateway/internal/modules/user"
@@ -37,9 +38,19 @@ func main() {
 	defer nc.Close()
 	log.Printf("Connecté à NATS sur %s", natsURL)
 
+	r := SetupServer(nc)
+
+	addr := ":8080"
+	log.Printf("Serveur démarré sur http://localhost%s", addr)
+	if err := http.ListenAndServe(addr, r); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func SetupServer(nc common.NatsConn) *chi.Mux {
 	hub := ws.NewHub()
 	if err := hub.StartNatsSubscription(nc); err != nil {
-		log.Fatalf("Impossible de démarrer l'abonnement NATS : %v", err)
+		log.Printf("Avertissement: Impossible de démarrer l'abonnement NATS : %v", err)
 	}
 
 	handler := ws.NewHandler(hub, nc)
@@ -75,15 +86,11 @@ func main() {
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte("OK"))
-		if err != nil {
-			http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
-			return
-		}
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
-		// 1. Extract Token (Query Param or Header)
+		// 1. Extract Token
 		token := r.URL.Query().Get("token")
 		if token == "" {
 			token = r.Header.Get("Authorization")
@@ -105,7 +112,7 @@ func main() {
 			return
 		}
 
-		if !valResult.Valid {
+		if !valResult.IsValid {
 			http.Error(w, "Unauthorized: invalid token", http.StatusUnauthorized)
 			return
 		}
@@ -124,9 +131,5 @@ func main() {
 		go socket.ReadLoop()
 	})
 
-	addr := ":8080"
-	log.Printf("Serveur démarré sur http://localhost%s", addr)
-	if err := http.ListenAndServe(addr, r); err != nil {
-		log.Fatal(err)
-	}
+	return r
 }

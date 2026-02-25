@@ -3,9 +3,8 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
+	"gateway/internal/common"
 	"time"
-
-	"github.com/nats-io/nats.go"
 )
 
 type UserInfo struct {
@@ -14,14 +13,14 @@ type UserInfo struct {
 }
 
 type ValidationResult struct {
-	Valid bool     `json:"valid"`
-	User  UserInfo `json:"user"`
+	IsValid bool     `json:"isValid"`
+	User    UserInfo `json:"user"`
 }
 
 // ValidateToken sends a request to the Auth service via NATS to validate a JWT token.
-func ValidateToken(nc *nats.Conn, token string) (*ValidationResult, error) {
+func ValidateToken(nc common.NatsConn, token string) (*ValidationResult, error) {
 	if token == "" {
-		return &ValidationResult{Valid: false}, nil
+		return &ValidationResult{IsValid: false}, nil
 	}
 
 	// Wrap for NestJS Microservice
