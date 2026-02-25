@@ -1,0 +1,46 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  # Prometheus lui-même
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # NATS via prometheus-nats-exporter (port 7777)
+  - job_name: nats
+    static_configs:
+      - targets: ['nats-exporter:7777']
+    metrics_path: /metrics
+
+  # MinIO
+  - job_name: minio
+    metrics_path: /minio/prometheus/metrics
+    static_configs:
+      - targets: ['minio:9000']
+
+  # Gateway Go — tourne en local (hors docker)
+  - job_name: gateway
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    metrics_path: /metrics
+
+  # Media service Go — tourne en local
+  - job_name: media
+    static_configs:
+      - targets: ['host.docker.internal:8082']
+    metrics_path: /metrics
+
+  # Message service Go — tourne en local
+  - job_name: message
+    static_configs:
+      - targets: ['host.docker.internal:8083']
+    metrics_path: /metrics
+
+  # Notification service Go — tourne en local
+  - job_name: notification
+    static_configs:
+      - targets: ['host.docker.internal:8084']
+    metrics_path: /metrics
