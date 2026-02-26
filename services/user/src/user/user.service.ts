@@ -2,17 +2,24 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { Redis } from 'ioredis';
 import { User } from '../user.entity.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { REDIS_CLIENT } from './redis.constants.js';
+
+const STATUS_TTL = 5 * 60;
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @Inject(REDIS_CLIENT)
+    private readonly redis: Redis,
   ) {}
 
   async findById(id: string) {
@@ -78,5 +85,21 @@ export class UserService {
       display_name: u.display_name,
       avatar_url: u.avatar_url,
     }));
+  }
+
+  async setStatus(userId: string, status: 'online' | 'offline') {
+    const key = `user:status:${userId}`;
+    if (status === 'offline') {
+      await this.redis.del(key);
+    } else {
+      await this.redis.set(key, status, 'EX', STATUS_TTL);
+    }
+    return { ok: true };
+  }
+
+  async getStatus(userId: string): Promise<{ status: 'online' | 'offline' }> {
+    const key = `user:status:${userId}`;
+    const val = await this.redis.get(key);
+    return { status: val === 'online' ? 'online' : 'offline' };
   }
 }

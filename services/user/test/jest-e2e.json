@@ -7,9 +7,10 @@
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "moduleNameMapper": {
-    "^(\\.{1,2}/.+)\\.js$": "$1"
+    "^(\\.{1,2}/.+)\\.js$": "$1",
+    "^uuid$": "<rootDir>/__mocks__/uuid.js"
   },
   "transformIgnorePatterns": [
-    "/node_modules/(?!uuid)"
+    "/node_modules/"
   ]
 }

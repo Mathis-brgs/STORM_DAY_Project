@@ -30,6 +30,7 @@
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "ioredis": "^5.9.3",
     "nats": "^2.29.3",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -79,10 +80,11 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "moduleNameMapper": {
-      "^(\\.{1,2}/.+)\\.js$": "$1"
+      "^(\\.{1,2}/.+)\\.js$": "$1",
+      "^uuid$": "<rootDir>/../__mocks__/uuid.js"
     },
     "transformIgnorePatterns": [
-      "/node_modules/(?!uuid)"
+      "/node_modules/"
     ],
     "collectCoverageFrom": [
       "**/*.(t|j)s",
