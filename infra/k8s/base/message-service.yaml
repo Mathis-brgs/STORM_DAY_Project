@@ -47,12 +47,8 @@ spec:
                   key: POSTGRES_PASSWORD
             - name: DB_NAME
               value: message_db
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            - name: STORAGE
+              value: postgres
           resources:
             requests:
               memory: "64Mi"

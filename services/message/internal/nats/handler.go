@@ -1,7 +1,9 @@
 package nats
 
 import (
+	"encoding/json"
 	"log"
+	"strconv"
 	"strings"
 
 	apiv1 "github.com/Mathis-brgs/storm-project/services/message/api/v1"
@@ -23,6 +25,7 @@ func NewMessageHandler(svc *service.MessageService) *Handler {
 
 type Handler struct {
 	svc *service.MessageService
+	nc  *nats.Conn
 }
 
 func (h *Handler) handleSendMessage(msg *nats.Msg) {
@@ -69,6 +72,27 @@ func (h *Handler) handleSendMessage(msg *nats.Msg) {
 	data, _ := proto.Marshal(resp)
 	if err := msg.Respond(data); err != nil {
 		log.Printf("respond: %v", err)
+	}
+
+	// Broadcast via NATS pour les Gateways
+	// On utilise le même format JSON que celui attendu par la Gateway dans hub.go
+	broadcastMsg := struct {
+		Action  string `json:"action"`
+		Room    string `json:"room"`
+		User    string `json:"user"`
+		Content string `json:"content"`
+	}{
+		Action:  "message", // Correspond à models.WSActionMessage
+		Room:    "group:" + strconv.Itoa(result.GroupID),
+		User:    result.SenderID.String(),
+		Content: result.Content,
+	}
+	broadcastData, _ := json.Marshal(broadcastMsg)
+	subject := "message.broadcast.group:" + strconv.Itoa(result.GroupID)
+	if h.nc != nil {
+		if err := h.nc.Publish(subject, broadcastData); err != nil {
+			log.Printf("failed to publish broadcast: %v", err)
+		}
 	}
 }
 
@@ -287,6 +311,7 @@ func (h *Handler) respondDeleteMessageError(msg *nats.Msg, code, text string) {
 }
 
 func (h *Handler) Listen(nc *nats.Conn) error {
+	h.nc = nc
 	if _, err := nc.QueueSubscribe("NEW_MESSAGE", "message", h.handleSendMessage); err != nil {
 		return err
 	}
