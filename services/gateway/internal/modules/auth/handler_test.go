@@ -79,8 +79,8 @@ func TestHandler_Logout(t *testing.T) {
 			if subject == "auth.validate" {
 				resp := map[string]interface{}{
 					"response": map[string]interface{}{
-						"isValid": true,
-						"user":    map[string]string{"id": "user-123"},
+						"valid": true,
+						"user":  map[string]string{"id": "user-123"},
 					},
 				}
 				respBytes, _ := json.Marshal(resp)
@@ -115,8 +115,8 @@ func TestHandler_Logout_Bearer(t *testing.T) {
 			if subject == "auth.validate" {
 				resp := map[string]interface{}{
 					"response": map[string]interface{}{
-						"isValid": true,
-						"user":    map[string]string{"id": "user-123"},
+						"valid": true,
+						"user":  map[string]string{"id": "user-123"},
 					},
 				}
 				respBytes, _ := json.Marshal(resp)
@@ -196,7 +196,7 @@ func TestHandler_Logout_ValidationError(t *testing.T) {
 func TestHandler_Logout_ValidationInvalid(t *testing.T) {
 	mockNc := &common.MockNatsConn{
 		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
-			resp := map[string]interface{}{"response": map[string]interface{}{"isValid": false}}
+			resp := map[string]interface{}{"response": map[string]interface{}{"valid": false}}
 			respBytes, _ := json.Marshal(resp)
 			return &nats.Msg{Data: respBytes}, nil
 		},
@@ -217,8 +217,8 @@ func TestHandler_Logout_NATSError(t *testing.T) {
 			if subject == "auth.validate" {
 				resp := map[string]interface{}{
 					"response": map[string]interface{}{
-						"isValid": true,
-						"user":    map[string]string{"id": "user-123"},
+						"valid": true,
+						"user":  map[string]string{"id": "user-123"},
 					},
 				}
 				respBytes, _ := json.Marshal(resp)

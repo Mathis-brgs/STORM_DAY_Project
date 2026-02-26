@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { Transport } from '@nestjs/microservices';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module.js';
+import { HttpToRpcExceptionFilter } from './filters/http-rpc-exception.filter.js';
 
 async function bootstrap() {
   // 1. Créer l'app HTTP (endpoints REST classiques)
@@ -9,6 +10,7 @@ async function bootstrap() {
 
   // 2. Activer la validation des DTOs
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  app.useGlobalFilters(new HttpToRpcExceptionFilter());
 
   // 3. Connecter le transport NATS pour écouter les messages du Gateway
   app.connectMicroservice({
@@ -27,4 +29,4 @@ async function bootstrap() {
     `User service NATS connected to ${process.env.NATS_URL || 'nats://localhost:4222'}`,
   );
 }
-bootstrap();
+bootstrap().catch(console.error);

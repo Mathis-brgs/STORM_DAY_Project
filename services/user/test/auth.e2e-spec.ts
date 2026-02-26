@@ -26,6 +26,7 @@ import { UserService } from '../src/user/user.service.js';
 const TEST_EMAIL = 'integ_test@storm.dev';
 const TEST_PASSWORD = 'IntegPass123';
 const TEST_USERNAME = 'integ_tester';
+const TEST_DISPLAY_NAME = 'Integ Tester';
 
 describe('Auth & User — Integration', () => {
   let app: INestApplication;
@@ -77,12 +78,14 @@ describe('Auth & User — Integration', () => {
     it('crée un utilisateur et retourne access_token + refresh_token', async () => {
       const result = await authService.register({
         username: TEST_USERNAME,
+        display_name: TEST_DISPLAY_NAME,
         email: TEST_EMAIL,
         password: TEST_PASSWORD,
       });
 
       expect(result.user.email).toBe(TEST_EMAIL);
       expect(result.user.username).toBe(TEST_USERNAME);
+      expect(result.user.display_name).toBe(TEST_DISPLAY_NAME);
       expect(result.user).not.toHaveProperty('password_hash');
       expect(result.access_token).toBeDefined();
       expect(result.refresh_token).toBeDefined();
@@ -96,6 +99,7 @@ describe('Auth & User — Integration', () => {
       await expect(
         authService.register({
           username: 'autre',
+          display_name: 'Autre',
           email: TEST_EMAIL,
           password: TEST_PASSWORD,
         }),
@@ -206,12 +210,14 @@ describe('Auth & User — Integration', () => {
   });
 
   describe('UserService.update', () => {
-    it('met à jour le username', async () => {
+    it('met à jour le username et le display_name', async () => {
       const result = await userService.update(userId, userId, {
         username: 'updated_tester',
+        display_name: 'Updated Tester',
       });
 
       expect(result.username).toBe('updated_tester');
+      expect(result.display_name).toBe('Updated Tester');
       expect(result).not.toHaveProperty('password_hash');
     });
 

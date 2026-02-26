@@ -72,6 +72,7 @@ func SetupServer(nc common.NatsConn) *chi.Mux {
 	r.Post("/auth/logout", authHandler.Logout)
 
 	// User Routes
+	r.Get("/users/search", userHandler.Search)
 	r.Get("/users/{id}", userHandler.Get)
 	r.Put("/users/{id}", userHandler.Update)
 
@@ -135,10 +136,5 @@ func SetupServer(nc common.NatsConn) *chi.Mux {
 	// Metrics Prometheus
 	r.Handle("/metrics", promhttp.Handler())
 
-	addr := ":8080"
-	log.Printf("Serveur démarré sur http://localhost%s", addr)
-	if err := http.ListenAndServe(addr, r); err != nil {
-		log.Fatal(err)
-	}
 	return r
 }
