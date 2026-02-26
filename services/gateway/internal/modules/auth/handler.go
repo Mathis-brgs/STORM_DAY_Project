@@ -122,24 +122,55 @@ func proxyRequest(nc common.NatsConn, subject string, w http.ResponseWriter, r *
 	}
 	log.Printf("[Gateway] Received NATS response from %s: %s", subject, string(msg.Data))
 
-	// NestJS wraps responses in { "response": ..., "isDisposed": ..., "id": ... }
+	// NestJS wraps responses in { "response": ..., "err": ..., "id": ... }
 	var wrapper struct {
 		Response json.RawMessage `json:"response"`
+		Err      json.RawMessage `json:"err"`
 	}
-	if err := json.Unmarshal(msg.Data, &wrapper); err == nil && len(wrapper.Response) > 0 {
+	if err := json.Unmarshal(msg.Data, &wrapper); err != nil {
+		log.Printf("[Gateway] Unmarshal Error: %v", err)
 		w.Header().Set("Content-Type", "application/json")
-		_, err = w.Write(wrapper.Response)
-		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-	} else {
-		// Fallback if not wrapped or empty
-		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
 		_, err = w.Write(msg.Data)
 		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			log.Printf("[Gateway] Write Error: %v", err)
+		}
+		return
+	}
+
+	// Si err existe -> lire err.statusCode et retourner ce code HTTP avec err comme body
+	if len(wrapper.Err) > 0 && string(wrapper.Err) != "null" {
+		var errBody struct {
+			StatusCode int `json:"statusCode"`
+		}
+		err := json.Unmarshal(wrapper.Err, &errBody)
+		if err != nil {
+			log.Printf("[Gateway] Unmarshal Error: %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_, err = w.Write(wrapper.Err)
+			if err != nil {
+				log.Printf("[Gateway] Write Error: %v", err)
+			}
 			return
 		}
+		status := errBody.StatusCode
+		if status < 400 {
+			status = 500
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, err = w.Write(wrapper.Err)
+		if err != nil {
+			log.Printf("[Gateway] Write Error: %v", err)
+		}
+		return
+	}
+
+	// Si response existe -> retourner 200 avec response comme body
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(wrapper.Response)
+	if err != nil {
+		log.Printf("[Gateway] Write Error: %v", err)
 	}
 }
