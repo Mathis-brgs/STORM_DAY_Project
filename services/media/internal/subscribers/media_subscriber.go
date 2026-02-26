@@ -27,13 +27,13 @@ type ErrorResponse struct {
 }
 
 func StartMediaSubscribers(nc *nats.Conn, mediaService *service.MediaService) error {
-	if _, err := nc.Subscribe("media.upload.requested", func(msg *nats.Msg) {
+	if _, err := nc.QueueSubscribe("media.upload.requested", "media", func(msg *nats.Msg) {
 		handleUpload(msg, mediaService)
 	}); err != nil {
 		return err
 	}
 
-	if _, err := nc.Subscribe("media.delete.requested", func(msg *nats.Msg) {
+	if _, err := nc.QueueSubscribe("media.delete.requested", "media", func(msg *nats.Msg) {
 		handleDelete(msg, mediaService)
 	}); err != nil {
 		return err

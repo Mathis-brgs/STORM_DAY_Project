@@ -27,28 +27,28 @@ type ErrorResponse struct {
 
 func StartNotificationSubscribers(nc *nats.Conn, svc *service.NotificationService) error {
 	// notification.send — envoyer une notification à un user
-	if _, err := nc.Subscribe("notification.send", func(msg *nats.Msg) {
+	if _, err := nc.QueueSubscribe("notification.send", "notification", func(msg *nats.Msg) {
 		handleSend(msg, svc)
 	}); err != nil {
 		return err
 	}
 
 	// notification.get — récupérer les notifs non lues d'un user
-	if _, err := nc.Subscribe("notification.get", func(msg *nats.Msg) {
+	if _, err := nc.QueueSubscribe("notification.get", "notification", func(msg *nats.Msg) {
 		handleGet(msg, svc)
 	}); err != nil {
 		return err
 	}
 
 	// notification.read — marquer toutes les notifs d'un user comme lues
-	if _, err := nc.Subscribe("notification.read", func(msg *nats.Msg) {
+	if _, err := nc.QueueSubscribe("notification.read", "notification", func(msg *nats.Msg) {
 		handleMarkRead(msg, svc)
 	}); err != nil {
 		return err
 	}
 
 	// Écoute les messages envoyés pour notifier le destinataire
-	if _, err := nc.Subscribe("message.sent", func(msg *nats.Msg) {
+	if _, err := nc.QueueSubscribe("message.sent", "notification", func(msg *nats.Msg) {
 		handleMessageSent(msg, svc)
 	}); err != nil {
 		return err
