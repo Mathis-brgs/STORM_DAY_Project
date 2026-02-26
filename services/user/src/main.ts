@@ -29,4 +29,4 @@ async function bootstrap() {
     `User service NATS connected to ${process.env.NATS_URL || 'nats://localhost:4222'}`,
   );
 }
-bootstrap();
+bootstrap().catch(console.error);
