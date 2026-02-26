@@ -142,15 +142,9 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 		}
 
 		if natsResp.Ok && natsResp.Data != nil {
-			// Rediffusion à la room en JSON pour que les clients reçoivent le message
-			broadcastMsg := models.InputMessage{
-				Action:  models.WSActionMessage,
-				Room:    msg.Room,
-				User:    natsResp.Data.GetSenderId(),
-				Content: natsResp.Data.GetContent(),
-			}
-			broadcastData, _ := json.Marshal(broadcastMsg)
-			h.hub.BroadcastToRoom(msg.Room, broadcastData)
+			// Le broadcast est maintenant géré par le message-service via NATS.
+			// La Gateway recevra le message via sa souscription message.broadcast.> dans hub.go
+			log.Printf("Message sauvegardé et prêt pour broadcast via NATS")
 		} else if natsResp.Error != nil {
 			log.Printf("Erreur message-service : %s - %s", natsResp.Error.Code, natsResp.Error.Message)
 		}
