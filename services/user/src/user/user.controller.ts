@@ -21,4 +21,14 @@ export class UserController {
   search(data: { query: string }) {
     return this.userService.search(data.query);
   }
+
+  @MessagePattern('user.status')
+  setStatus(data: { userId: string; status: 'online' | 'offline' }) {
+    return this.userService.setStatus(data.userId, data.status);
+  }
+
+  @MessagePattern('user.status.get')
+  getStatus(data: { userId: string }) {
+    return this.userService.getStatus(data.userId);
+  }
 }

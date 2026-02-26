@@ -8,6 +8,9 @@ describe('UserController', () => {
   const mockUserService = {
     findById: jest.fn(),
     update: jest.fn(),
+    search: jest.fn(),
+    setStatus: jest.fn(),
+    getStatus: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -53,6 +56,38 @@ describe('UserController', () => {
         { username: 'newname' },
       );
       expect(result).toBe(updated);
+    });
+  });
+
+  // ── setStatus ─────────────────────────────────────────────────────────────
+
+  describe('setStatus', () => {
+    it('délègue à userService.setStatus et retourne le résultat', async () => {
+      mockUserService.setStatus.mockResolvedValue({ ok: true });
+
+      const result = await controller.setStatus({
+        userId: 'user-uuid-1',
+        status: 'online',
+      });
+
+      expect(mockUserService.setStatus).toHaveBeenCalledWith(
+        'user-uuid-1',
+        'online',
+      );
+      expect(result).toEqual({ ok: true });
+    });
+  });
+
+  // ── getStatus ─────────────────────────────────────────────────────────────
+
+  describe('getStatus', () => {
+    it('délègue à userService.getStatus et retourne le résultat', async () => {
+      mockUserService.getStatus.mockResolvedValue({ status: 'online' });
+
+      const result = await controller.getStatus({ userId: 'user-uuid-1' });
+
+      expect(mockUserService.getStatus).toHaveBeenCalledWith('user-uuid-1');
+      expect(result).toEqual({ status: 'online' });
     });
   });
 });

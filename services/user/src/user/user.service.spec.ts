@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { UserService } from './user.service.js';
 import { User } from '../user.entity.js';
+import { REDIS_CLIENT } from './user.module.js';
 
 describe('UserService', () => {
   let service: UserService;
@@ -10,6 +11,12 @@ describe('UserService', () => {
   const mockUserRepo = {
     findOne: jest.fn(),
     save: jest.fn(),
+  };
+
+  const mockRedis = {
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
   };
 
   const mockUser: User = {
@@ -28,6 +35,7 @@ describe('UserService', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
+        { provide: REDIS_CLIENT, useValue: mockRedis },
       ],
     }).compile();
 
@@ -122,6 +130,55 @@ describe('UserService', () => {
       });
 
       expect(result).not.toHaveProperty('password_hash');
+    });
+  });
+
+  // ── setStatus ─────────────────────────────────────────────────────────────
+
+  describe('setStatus', () => {
+    it('should call redis.set with EX when status is online', async () => {
+      mockRedis.set.mockResolvedValue('OK');
+
+      const result = await service.setStatus('user-uuid-1', 'online');
+
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'user:status:user-uuid-1',
+        'online',
+        'EX',
+        300,
+      );
+      expect(result).toEqual({ ok: true });
+    });
+
+    it('should call redis.del when status is offline', async () => {
+      mockRedis.del.mockResolvedValue(1);
+
+      const result = await service.setStatus('user-uuid-1', 'offline');
+
+      expect(mockRedis.del).toHaveBeenCalledWith('user:status:user-uuid-1');
+      expect(mockRedis.set).not.toHaveBeenCalled();
+      expect(result).toEqual({ ok: true });
+    });
+  });
+
+  // ── getStatus ─────────────────────────────────────────────────────────────
+
+  describe('getStatus', () => {
+    it('should return online when Redis has the key', async () => {
+      mockRedis.get.mockResolvedValue('online');
+
+      const result = await service.getStatus('user-uuid-1');
+
+      expect(mockRedis.get).toHaveBeenCalledWith('user:status:user-uuid-1');
+      expect(result).toEqual({ status: 'online' });
+    });
+
+    it('should return offline when Redis key is missing', async () => {
+      mockRedis.get.mockResolvedValue(null);
+
+      const result = await service.getStatus('user-uuid-1');
+
+      expect(result).toEqual({ status: 'offline' });
     });
   });
 });
