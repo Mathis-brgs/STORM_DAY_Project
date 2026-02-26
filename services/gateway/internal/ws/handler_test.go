@@ -8,7 +8,9 @@ import (
 	"testing"
 	"time"
 
+	apiv1 "github.com/Mathis-brgs/storm-project/services/message/api/v1"
 	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestHandler_OnOpen(t *testing.T) {
@@ -80,10 +82,31 @@ func TestHandler_OnMessage_Join(t *testing.T) {
 
 func TestHandler_OnMessage_Message(t *testing.T) {
 	hub := NewHub()
-	mockNats := &MockNatsConn{}
+	mockNats := &MockNatsConn{
+		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
+			if subject == "NEW_MESSAGE" {
+				// Simuler une réponse positive du message-service
+				resp := &apiv1.SendMessageResponse{
+					Ok: true,
+					Data: &apiv1.ChatMessage{
+						Id:       1,
+						SenderId: "456",
+						GroupId:  123,
+						Content:  "hello",
+					},
+				}
+				respBytes, _ := proto.Marshal(resp)
+				return &nats.Msg{Data: respBytes}, nil
+			}
+			return &nats.Msg{}, nil
+		},
+	}
 	handler := NewHandler(hub, mockNats)
 	socket := &MockSocket{addr: "1"}
 	socket.Session().Store("userId", "456")
+
+	// On rejoint la room pour pouvoir capter le broadcast
+	hub.Join("group:123", socket)
 
 	msg := models.InputMessage{
 		Action:  models.WSActionMessage,
@@ -95,11 +118,18 @@ func TestHandler_OnMessage_Message(t *testing.T) {
 
 	handler.onMessage(socket, message)
 
-	if mockNats.LastPublishedSubject != "NEW_MESSAGE" {
-		t.Errorf("Expected NATS publish to NEW_MESSAGE, got %s", mockNats.LastPublishedSubject)
+	// Vérifier que le socket a reçu le message diffusé (Echo)
+	// WriteCount devrait être 1 car l'envoyeur reçoit aussi son message
+	if socket.WriteCount == 0 {
+		t.Error("Expected broadcast message (Echo) to be sent to the socket")
 	}
-	if len(mockNats.LastPublishedData) == 0 {
-		t.Error("Expected NATS payload to be non-empty")
+
+	var res models.InputMessage
+	if err := json.Unmarshal(socket.LastPayload, &res); err != nil {
+		t.Fatalf("Failed to unmarshal broadcast payload: %v", err)
+	}
+	if res.Content != "hello" {
+		t.Errorf("Expected broadcast content 'hello', got %s", res.Content)
 	}
 }
 

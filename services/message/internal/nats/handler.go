@@ -31,7 +31,6 @@ func (h *Handler) handleSendMessage(msg *nats.Msg) {
 		h.respondError(msg, errorCodeBadRequest, "invalid request format")
 		return
 	}
-
 	if req.GetGroupId() == 0 {
 		h.respondError(msg, errorCodeBadRequest, "group_id required")
 		return
@@ -217,13 +216,13 @@ func chatMessageToProto(m *models.ChatMessage) *apiv1.ChatMessage {
 		return nil
 	}
 	return &apiv1.ChatMessage{
-		Id:        int32(m.ID),
-		SenderId:  m.SenderID.String(),
-		GroupId:   int32(m.GroupID),
-		Content:   m.Content,
+		Id:         int32(m.ID),
+		SenderId:   m.SenderID.String(),
+		GroupId:    int32(m.GroupID),
+		Content:    m.Content,
 		Attachment: m.Attachment,
-		CreatedAt: m.CreatedAt.Unix(),
-		UpdatedAt: m.UpdatedAt.Unix(),
+		CreatedAt:  m.CreatedAt.Unix(),
+		UpdatedAt:  m.UpdatedAt.Unix(),
 	}
 }
 

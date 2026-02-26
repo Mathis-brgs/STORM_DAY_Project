@@ -13,7 +13,7 @@ type UserInfo struct {
 }
 
 type ValidationResult struct {
-	IsValid bool     `json:"isValid"`
+	IsValid bool     `json:"valid"`
 	User    UserInfo `json:"user"`
 }
 
