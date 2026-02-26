@@ -1,0 +1,51 @@
+global:
+  resolve_timeout: 5m
+
+# ─────────────────────────────────────────────────────────────────
+# Routing — qui reçoit quoi
+# ─────────────────────────────────────────────────────────────────
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: discord           # récepteur par défaut (warnings → Discord)
+  routes:
+    # Alertes critiques → Slack EN PLUS de Discord (continue: true)
+    - matchers:
+        - severity = critical
+      receiver: slack-critical
+      continue: true
+
+receivers:
+
+  # Discord — toutes les alertes
+  - name: discord
+    webhook_configs:
+      - url: 'https://discord.com/api/webhooks/XXXXX/YYYYY'
+        send_resolved: true
+        http_config: {}
+
+  # Slack — alertes critiques uniquement
+  - name: slack-critical
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/XXXXX/YYYYY/ZZZZZ'
+        channel: '#storm-alerts'
+        send_resolved: true
+        icon_emoji: ':fire:'
+        username: 'STORM AlertManager'
+        title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ if .Annotations.description }}{{ .Annotations.description }}{{ end }}
+          Sévérité : `{{ .Labels.severity }}`
+          {{ end }}
+
+# Inhibitions — ne pas doubler les alertes
+inhibit_rules:
+  - source_matchers:
+      - severity = critical
+    target_matchers:
+      - severity = warning
+    equal: ['alertname', 'job']

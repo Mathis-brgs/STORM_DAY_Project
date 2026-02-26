@@ -12,6 +12,11 @@ data:
       scrape_interval:     15s
       evaluation_interval: 15s
 
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ['alertmanager:9093']
+
     rule_files:
       - /etc/prometheus/alerts.yml
 
@@ -246,6 +251,67 @@ data:
     }
 
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting
+  namespace: storm
+data:
+  alerting.yml: |
+    apiVersion: 1
+    contactPoints:
+      - orgId: 1
+        name: Slack Critical
+        receivers:
+          - uid: slack-critical
+            type: slack
+            disableResolveMessage: false
+            settings:
+              url: ${SLACK_WEBHOOK_URL}
+              title: |
+                [{{ .Status | toUpper }}{{ if eq .Status "firing" }} 🔥{{ else }} ✅{{ end }}] STORM — {{ .CommonLabels.alertname }}
+              text: |
+                {{ range .Alerts }}
+                *{{ .Annotations.summary }}*
+                {{ if .Annotations.description }}{{ .Annotations.description }}{{ end }}
+                Severity: `{{ .Labels.severity }}`
+                {{ end }}
+              username: STORM Alerts
+              icon_emoji: ":warning:"
+      - orgId: 1
+        name: Discord Alerts
+        receivers:
+          - uid: discord-alerts
+            type: discord
+            disableResolveMessage: false
+            settings:
+              url: ${DISCORD_WEBHOOK_URL}
+              message: |
+                **[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}**
+                {{ range .Alerts -}}
+                > {{ .Annotations.summary }}
+                {{ if .Annotations.description }}{{ .Annotations.description }}{{ end }}
+                Sévérité : **{{ .Labels.severity }}**
+                {{ end }}
+    ---
+    apiVersion: 1
+    policies:
+      - orgId: 1
+        receiver: Discord Alerts
+        group_by: ['alertname', 'severity']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        routes:
+          - receiver: Slack Critical
+            matchers:
+              - severity = critical
+            continue: true
+          - receiver: Discord Alerts
+            matchers:
+              - severity = warning
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -275,6 +341,16 @@ spec:
               value: "3001"
             - name: GF_USERS_ALLOW_SIGN_UP
               value: "false"
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-alerting-secrets
+                  key: SLACK_WEBHOOK_URL
+            - name: DISCORD_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-alerting-secrets
+                  key: DISCORD_WEBHOOK_URL
           volumeMounts:
             - name: datasources
               mountPath: /etc/grafana/provisioning/datasources
@@ -282,15 +358,19 @@ spec:
               mountPath: /etc/grafana/provisioning/dashboards
             - name: dashboards-data
               mountPath: /var/lib/grafana/dashboards
+            - name: alerting
+              mountPath: /etc/grafana/provisioning/alerting
             - name: storage
               mountPath: /var/lib/grafana
           resources:
             requests:
               memory: "128Mi"
               cpu: "50m"
+              ephemeral-storage: "256Mi"
             limits:
               memory: "256Mi"
               cpu: "200m"
+              ephemeral-storage: "512Mi"
           readinessProbe:
             httpGet:
               path: /api/health
@@ -305,8 +385,15 @@ spec:
           configMap:
             name: grafana-dashboards-provider
         - name: dashboards-data
+          projected:
+            sources:
+              - configMap:
+                  name: grafana-dashboard-overview
+              - configMap:
+                  name: grafana-dashboards-services
+        - name: alerting
           configMap:
-            name: grafana-dashboard-overview
+            name: grafana-alerting
         - name: storage
           emptyDir: {}
 
