@@ -17,7 +17,7 @@ func TestSetupServer(t *testing.T) {
 			if subject == "auth.validate" {
 				type respWrapper struct {
 					Response struct {
-						IsValid bool `json:"isValid"`
+						IsValid bool `json:"valid"`
 						User    struct {
 							ID       string `json:"id"`
 							Username string `json:"username"`
@@ -87,7 +87,7 @@ func TestSetupServer_WS_AuthFail(t *testing.T) {
 			if subject == "auth.validate" {
 				resp := map[string]interface{}{
 					"response": map[string]interface{}{
-						"isValid": false,
+						"valid": false,
 					},
 				}
 				respBytes, _ := json.Marshal(resp)
@@ -130,8 +130,8 @@ func TestSetupServer_WS_Bearer(t *testing.T) {
 			if subject == "auth.validate" {
 				resp := map[string]interface{}{
 					"response": map[string]interface{}{
-						"isValid": true,
-						"user":    map[string]string{"id": "user-123"},
+						"valid": true,
+						"user":  map[string]string{"id": "user-123"},
 					},
 				}
 				respBytes, _ := json.Marshal(resp)
@@ -159,8 +159,8 @@ func TestSetupServer_WS_Valid(t *testing.T) {
 			if subject == "auth.validate" {
 				resp := map[string]interface{}{
 					"response": map[string]interface{}{
-						"isValid": true,
-						"user":    map[string]string{"id": "user-123", "username": "testuser"},
+						"valid": true,
+						"user":  map[string]string{"id": "user-123", "username": "testuser"},
 					},
 				}
 				respBytes, _ := json.Marshal(resp)

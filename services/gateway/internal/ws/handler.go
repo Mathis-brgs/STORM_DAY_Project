@@ -129,9 +129,30 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 			return
 		}
 
-		err = h.nats.Publish("NEW_MESSAGE", protoData)
+		respMsg, err := h.nats.Request("NEW_MESSAGE", protoData, 5*time.Second)
 		if err != nil {
-			log.Printf("Erreur publication sur NATS (NEW_MESSAGE) : %v", err)
+			log.Printf("Erreur NATS Request (NEW_MESSAGE) : %v", err)
+			return
+		}
+
+		var natsResp apiv1.SendMessageResponse
+		if err := proto.Unmarshal(respMsg.Data, &natsResp); err != nil {
+			log.Printf("Erreur unmarshal NATS response : %v", err)
+			return
+		}
+
+		if natsResp.Ok && natsResp.Data != nil {
+			// Rediffusion à la room en JSON pour que les clients reçoivent le message
+			broadcastMsg := models.InputMessage{
+				Action:  models.WSActionMessage,
+				Room:    msg.Room,
+				User:    natsResp.Data.GetSenderId(),
+				Content: natsResp.Data.GetContent(),
+			}
+			broadcastData, _ := json.Marshal(broadcastMsg)
+			h.hub.BroadcastToRoom(msg.Room, broadcastData)
+		} else if natsResp.Error != nil {
+			log.Printf("Erreur message-service : %s - %s", natsResp.Error.Code, natsResp.Error.Message)
 		}
 
 	case models.WSActionTyping:
