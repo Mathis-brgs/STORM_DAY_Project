@@ -1,8 +1,10 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseFilters } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
 import { UserService } from './user.service.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { HttpToRpcExceptionFilter } from '../filters/http-rpc-exception.filter.js';
 
+@UseFilters(new HttpToRpcExceptionFilter())
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}

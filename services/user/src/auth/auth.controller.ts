@@ -1,9 +1,11 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseFilters } from '@nestjs/common';
 import { MessagePattern } from '@nestjs/microservices';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
+import { HttpToRpcExceptionFilter } from '../filters/http-rpc-exception.filter.js';
 
+@UseFilters(new HttpToRpcExceptionFilter())
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

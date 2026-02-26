@@ -1,5 +1,5 @@
 import { Catch, ArgumentsHost, HttpException } from '@nestjs/common';
-import { BaseRpcExceptionFilter, RpcException } from '@nestjs/microservices';
+import { BaseRpcExceptionFilter } from '@nestjs/microservices';
 import { Observable, throwError } from 'rxjs';
 
 @Catch(HttpException)
@@ -13,12 +13,11 @@ export class HttpToRpcExceptionFilter extends BaseRpcExceptionFilter {
         ? res
         : (res as { message?: string | string[] }).message;
 
-    return throwError(
-      () =>
-        new RpcException({
-          statusCode: status,
-          message: Array.isArray(message) ? message[0] : message,
-        }),
-    );
+    // Throw a plain object (not RpcException) so NATS serializes it flat:
+    // { err: { statusCode, message } } — format expected by the gateway
+    return throwError(() => ({
+      statusCode: status,
+      message: Array.isArray(message) ? message[0] : (message ?? res),
+    }));
   }
 }
