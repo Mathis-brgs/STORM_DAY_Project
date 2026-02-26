@@ -9,7 +9,7 @@ import { Repository } from 'typeorm';
 import type { Redis } from 'ioredis';
 import { User } from '../user.entity.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
-import { REDIS_CLIENT } from './user.module.js';
+import { REDIS_CLIENT } from './redis.constants.js';
 
 const STATUS_TTL = 5 * 60;
 

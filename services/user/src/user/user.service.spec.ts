@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { UserService } from './user.service.js';
 import { User } from '../user.entity.js';
-import { REDIS_CLIENT } from './user.module.js';
+import { REDIS_CLIENT } from './redis.constants.js';
 
 describe('UserService', () => {
   let service: UserService;

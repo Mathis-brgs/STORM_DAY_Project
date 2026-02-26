@@ -4,8 +4,7 @@ import Redis from 'ioredis';
 import { UserController } from './user.controller.js';
 import { UserService } from './user.service.js';
 import { User } from '../user.entity.js';
-
-export const REDIS_CLIENT = 'REDIS_CLIENT';
+import { REDIS_CLIENT } from './redis.constants.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User])],
