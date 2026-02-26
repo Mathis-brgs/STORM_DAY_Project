@@ -1,0 +1,192 @@
+{
+  "title": "STORM — Notification Service",
+  "uid": "storm-notifications",
+  "description": "Monitoring du Notification Service (Go + Redis + NATS). Métriques Go runtime + NATS flow.",
+  "schemaVersion": 42,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "timezone": "browser",
+  "tags": ["storm", "notification", "redis"],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "pluginId": "prometheus",
+        "label": "Datasource",
+        "hide": 0,
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Santé & État",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Notification Service UP",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] }
+        }
+      },
+      "targets": [{ "expr": "up{job=\"notification\"}", "refId": "A" }]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Goroutines",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "green" }, { "value": 100, "color": "yellow" }, { "value": 500, "color": "red" }] }
+        }
+      },
+      "targets": [{ "expr": "go_goroutines{job=\"notification\"}", "refId": "A" }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Mémoire RSS",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "green" }, { "value": 134217728, "color": "yellow" }, { "value": 268435456, "color": "red" }] }
+        }
+      },
+      "targets": [{ "expr": "process_resident_memory_bytes{job=\"notification\"}", "refId": "A" }]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "CPU %",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "green" }, { "value": 30, "color": "yellow" }, { "value": 60, "color": "red" }] }
+        }
+      },
+      "targets": [{ "expr": "rate(process_cpu_seconds_total{job=\"notification\"}[1m]) * 100", "refId": "A" }]
+    },
+    {
+      "id": 6,
+      "type": "row",
+      "title": "Performance Go Runtime",
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Goroutines — Notification Service",
+      "description": "Stable = normal. Montée = NATS subscribers en attente ou Redis calls lents.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "spanNulls": true }
+        }
+      },
+      "targets": [
+        { "expr": "go_goroutines{job=\"notification\"}", "legendFormat": "goroutines", "refId": "A" }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Mémoire Go — Heap alloc & sys",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "spanNulls": true }
+        }
+      },
+      "targets": [
+        { "expr": "go_memstats_alloc_bytes{job=\"notification\"}", "legendFormat": "Heap alloué", "refId": "A" },
+        { "expr": "go_memstats_sys_bytes{job=\"notification\"}", "legendFormat": "Sys total", "refId": "B" }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "NATS — Flux Notifications",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "NATS — Messages/s (notification.send, message.sent)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 15, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "spanNulls": true }
+        }
+      },
+      "targets": [
+        { "expr": "rate(gnatsd_varz_in_msgs[1m])", "legendFormat": "msgs entrants NATS/s", "refId": "A" },
+        { "expr": "rate(gnatsd_varz_out_msgs[1m])", "legendFormat": "msgs sortants NATS/s", "refId": "B" }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "GC Go — Durée & Fréquence",
+      "description": "Si GC fréquent = allocation mémoire élevée (ex: Redis responses volumineuses).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 15, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "spanNulls": true }
+        }
+      },
+      "targets": [
+        { "expr": "rate(go_gc_duration_seconds_sum{job=\"notification\"}[1m])", "legendFormat": "durée GC/s", "refId": "A" },
+        { "expr": "rate(go_gc_duration_seconds_count{job=\"notification\"}[1m])", "legendFormat": "nb GC/s", "refId": "B" }
+      ]
+    }
+  ]
+}

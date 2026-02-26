@@ -1,0 +1,162 @@
+# ─────────────────────────────────────────────────────────────────
+# AlertManager — Route les alertes Prometheus vers Slack/Discord
+# Remplacer les URLs webhook avant apply :
+#   kubectl edit secret alertmanager-secrets -n storm
+# ─────────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-secrets
+  namespace: storm
+type: Opaque
+stringData:
+  SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/XXXXX/YYYYY/ZZZZZ"
+  DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/XXXXX/YYYYY"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: storm
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+
+    route:
+      group_by: ['alertname', 'severity']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: discord
+      routes:
+        - matchers:
+            - severity = critical
+          receiver: slack-critical
+          continue: true
+
+    receivers:
+      - name: discord
+        webhook_configs:
+          - url: 'DISCORD_WEBHOOK_PLACEHOLDER'
+            send_resolved: true
+
+      - name: slack-critical
+        slack_configs:
+          - api_url: 'SLACK_WEBHOOK_PLACEHOLDER'
+            channel: '#storm-alerts'
+            send_resolved: true
+            icon_emoji: ':fire:'
+            username: 'STORM AlertManager'
+            title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+            text: |
+              {{ range .Alerts }}
+              *{{ .Annotations.summary }}*
+              {{ if .Annotations.description }}{{ .Annotations.description }}{{ end }}
+              Sévérité : `{{ .Labels.severity }}`
+              {{ end }}
+
+    inhibit_rules:
+      - source_matchers:
+          - severity = critical
+        target_matchers:
+          - severity = warning
+        equal: ['alertname', 'job']
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: storm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      initContainers:
+        # Remplace les placeholders par les vraies URLs depuis les secrets
+        - name: config-init
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              sed \
+                -e "s|DISCORD_WEBHOOK_PLACEHOLDER|${DISCORD_WEBHOOK_URL}|g" \
+                -e "s|SLACK_WEBHOOK_PLACEHOLDER|${SLACK_WEBHOOK_URL}|g" \
+                /config-template/alertmanager.yml > /config/alertmanager.yml
+          env:
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: SLACK_WEBHOOK_URL
+            - name: DISCORD_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: DISCORD_WEBHOOK_URL
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+            - name: config
+              mountPath: /config
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.27.0
+          args:
+            - "--config.file=/etc/alertmanager/alertmanager.yml"
+            - "--storage.path=/alertmanager"
+            - "--cluster.listen-address="
+          ports:
+            - containerPort: 9093
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            - name: storage
+              mountPath: /alertmanager
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+              ephemeral-storage: "128Mi"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+              ephemeral-storage: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config-template
+          configMap:
+            name: alertmanager-config
+        - name: config
+          emptyDir: {}
+        - name: storage
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: storm
+spec:
+  type: ClusterIP
+  selector:
+    app: alertmanager
+  ports:
+    - port: 9093
+      targetPort: 9093

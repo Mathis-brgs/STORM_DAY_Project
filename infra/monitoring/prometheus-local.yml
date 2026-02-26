@@ -2,6 +2,16 @@ global:
   scrape_interval:     15s
   evaluation_interval: 15s
 
+# AlertManager local (docker-compose)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# Règles d'alertes (montées depuis infra/monitoring/alerts.yml)
+rule_files:
+  - /etc/prometheus/alerts.yml
+
 scrape_configs:
 
   # Prometheus lui-même

@@ -195,13 +195,16 @@ Tous les deployments référencent maintenant configMapKeyRef / secretKeyRef
 ### Faisable en local (sans Azure)
 
 ```
-□ NATS cluster 3 nœuds (Helm chart)
-□ Azure K8s overlay (remplacer l'overlay AWS)
-□ Ajouter /metrics aux services Go (prometheus/client_golang)
-□ K8s : affiner ConfigMaps et Secrets
+✅ NATS cluster 3 nœuds (Helm chart)
+✅ Azure K8s overlay (remplacer l'overlay AWS)
+✅ Ajouter /metrics aux services Go (prometheus/client_golang)
+✅ K8s : affiner ConfigMaps et Secrets
 □ Load testing 10K → 20K users (une fois le cluster up)
-□ Chaos engineering scripts (kill-pods.sh, inject-latency.sh, fill-disk.sh)
-□ Alerting Slack/Discord (Grafana alertmanager)
+✅ Chaos engineering scripts (kill-pods.sh, inject-latency.sh, fill-disk.sh)
+✅ Alerting Slack/Discord (Grafana alertmanager)
+  → infra/monitoring/grafana-alerting.yml (contact points + policies)
+  → .env.example (SLACK_WEBHOOK_URL, DISCORD_WEBHOOK_URL)
+  → K8s : Secret grafana-alerting-secrets + ConfigMap grafana-alerting
 ```
 
 ### Nécessite Azure (accès école)

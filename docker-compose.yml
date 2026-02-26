@@ -78,11 +78,27 @@ services:
       - "9090:9090"
     volumes:
       - ./infra/monitoring/prometheus-local.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=7d'
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: storm-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./infra/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--cluster.listen-address='
+    env_file:
+      - .env
 
   grafana:
     image: grafana/grafana:latest
@@ -93,10 +109,14 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"
+      # Webhooks alerting — copier .env.example → .env et remplir les URLs
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./infra/monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
       - ./infra/monitoring/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/monitoring/grafana-alerting.yml:/etc/grafana/provisioning/alerting/alerting.yml:ro
     depends_on:
       - prometheus
 

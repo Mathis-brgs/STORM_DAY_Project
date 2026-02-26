@@ -21,5 +21,7 @@ resources:
   - notification-service.yaml
   # Monitoring
   - monitoring.yaml
+  - alertmanager.yaml
+  - grafana-dashboards.yaml
   # Autoscaling
   - hpa.yaml

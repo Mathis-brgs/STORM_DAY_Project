@@ -1,0 +1,182 @@
+{
+  "title": "STORM — Message Service",
+  "uid": "storm-messages",
+  "description": "Monitoring du Message Service. ⚠️ Le service n'expose pas de /metrics HTTP — métriques NATS utilisées comme proxy du throughput.",
+  "schemaVersion": 42,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "timezone": "browser",
+  "tags": ["storm", "messages", "nats"],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "pluginId": "prometheus",
+        "label": "Datasource",
+        "hide": 0,
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Santé",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Message Service UP",
+      "description": "⚠️ Toujours DOWN — le service n'a pas de serveur HTTP. Ajouter promhttp dans message/cmd/main.go pour activer.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN — pas de /metrics", "color": "orange" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "orange" }, { "value": 1, "color": "green" }] }
+        }
+      },
+      "targets": [{ "expr": "up{job=\"message\"}", "refId": "A" }]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "NATS — msgs entrants (total)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "blue" }] } } },
+      "targets": [{ "expr": "gnatsd_varz_in_msgs", "legendFormat": "msgs in", "refId": "A" }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "NATS — msgs sortants (total)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "blue" }] } } },
+      "targets": [{ "expr": "gnatsd_varz_out_msgs", "legendFormat": "msgs out", "refId": "A" }]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "NATS — Subscriptions actives",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "green" }] } } },
+      "targets": [{ "expr": "gnatsd_varz_subscriptions", "refId": "A" }]
+    },
+    {
+      "id": 6,
+      "type": "row",
+      "title": "Throughput NATS (proxy Message Service)",
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Messages / seconde (NEW_MESSAGE, GET_MESSAGE, etc.)",
+      "description": "Rate des messages NATS — proxy du throughput du Message Service",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "spanNulls": true }
+        }
+      },
+      "targets": [
+        { "expr": "rate(gnatsd_varz_in_msgs[1m])", "legendFormat": "msgs entrants/s", "refId": "A" },
+        { "expr": "rate(gnatsd_varz_out_msgs[1m])", "legendFormat": "msgs sortants/s", "refId": "B" }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Débit bytes NATS",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "spanNulls": true }
+        }
+      },
+      "targets": [
+        { "expr": "rate(gnatsd_varz_in_bytes[1m])", "legendFormat": "bytes entrants/s", "refId": "A" },
+        { "expr": "rate(gnatsd_varz_out_bytes[1m])", "legendFormat": "bytes sortants/s", "refId": "B" }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "Slow Consumers & Santé NATS",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Slow Consumers (retard traitement messages)",
+      "description": "Si > 0 : le Message Service traite les messages trop lentement.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 15, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "points", "pointSize": 6, "lineWidth": 2, "spanNulls": true },
+          "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "green" }, { "value": 1, "color": "red" }] }
+        }
+      },
+      "targets": [
+        { "expr": "gnatsd_varz_slow_consumers", "legendFormat": "slow consumers", "refId": "A" }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Connexions NATS totales",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 15, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "points", "pointSize": 5, "lineWidth": 2, "spanNulls": true }
+        }
+      },
+      "targets": [
+        { "expr": "gnatsd_varz_connections", "legendFormat": "connexions NATS actives", "refId": "A" }
+      ]
+    }
+  ]
+}

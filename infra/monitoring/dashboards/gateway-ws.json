@@ -1,0 +1,201 @@
+{
+  "title": "STORM — Gateway / WebSocket",
+  "uid": "storm-gateway-ws",
+  "description": "Monitoring du Gateway (HTTP + WebSocket). Goroutines = proxy connexions WS actives.",
+  "schemaVersion": 42,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "timezone": "browser",
+  "tags": ["storm", "gateway", "websocket"],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "pluginId": "prometheus",
+        "label": "Datasource",
+        "hide": 0,
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Santé & État",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Gateway UP",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] }
+        }
+      },
+      "targets": [{ "expr": "up{job=\"gateway\"}", "refId": "A", "legendFormat": "" }]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Goroutines (proxy WS connexions)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "blue" }, { "value": 500, "color": "yellow" }, { "value": 1000, "color": "orange" }] }
+        }
+      },
+      "targets": [{ "expr": "go_goroutines{job=\"gateway\"}", "refId": "A" }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Mémoire RSS",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "green" }, { "value": 209715200, "color": "yellow" }, { "value": 419430400, "color": "red" }] }
+        }
+      },
+      "targets": [{ "expr": "process_resident_memory_bytes{job=\"gateway\"}", "refId": "A" }]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "CPU %",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "green" }, { "value": 50, "color": "yellow" }, { "value": 80, "color": "red" }] }
+        }
+      },
+      "targets": [{ "expr": "rate(process_cpu_seconds_total{job=\"gateway\"}[1m]) * 100", "refId": "A" }]
+    },
+    {
+      "id": 6,
+      "type": "row",
+      "title": "Performance",
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Goroutines (connexions WebSocket actives)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "spanNulls": true }
+        }
+      },
+      "targets": [
+        { "expr": "go_goroutines{job=\"gateway\"}", "legendFormat": "goroutines", "refId": "A" }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "CPU & Mémoire",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "spanNulls": true }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "CPU %" }, "properties": [{ "id": "unit", "value": "percent" }] },
+          { "matcher": { "id": "byName", "options": "Mémoire RSS" }, "properties": [{ "id": "unit", "value": "bytes" }] }
+        ]
+      },
+      "targets": [
+        { "expr": "rate(process_cpu_seconds_total{job=\"gateway\"}[1m]) * 100", "legendFormat": "CPU %", "refId": "A" },
+        { "expr": "process_resident_memory_bytes{job=\"gateway\"}", "legendFormat": "Mémoire RSS", "refId": "B" }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "NATS — Flux de messages",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "NATS — Messages par seconde",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 0, "y": 15, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10, "spanNulls": true }
+        }
+      },
+      "targets": [
+        { "expr": "rate(gnatsd_varz_in_msgs[1m])", "legendFormat": "msgs entrants/s", "refId": "A" },
+        { "expr": "rate(gnatsd_varz_out_msgs[1m])", "legendFormat": "msgs sortants/s", "refId": "B" }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "NATS — Connexions & Abonnements",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "x": 12, "y": 15, "w": 12, "h": 8 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "points", "pointSize": 5, "lineWidth": 2, "fillOpacity": 10, "spanNulls": true }
+        }
+      },
+      "targets": [
+        { "expr": "gnatsd_varz_connections", "legendFormat": "connexions NATS", "refId": "A" },
+        { "expr": "gnatsd_varz_subscriptions", "legendFormat": "subscriptions", "refId": "B" }
+      ]
+    }
+  ]
+}
