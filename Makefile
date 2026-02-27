@@ -3,8 +3,14 @@ CLUSTER_NAME=storm
 NAMESPACE=storm
 GATEWAY_PORT=30080
 IMAGES=storm/user-service:latest storm/gateway-service:latest storm/message-service:latest storm/media-service:latest
+POSTGRES_USER=storm
+MESSAGE_DB_NAME=message_db
+USER_DB_NAME=user_db
 
-.PHONY: up down clean build deploy import restart status logs logs-media migrate-message migrate-user seed-message seed-user proto-message
+.PHONY: up down clean build deploy import restart status logs logs-media \
+	migrate-message migrate-message-legacy seed-message seed-user \
+	migrate-message-docker migrate-message-legacy-docker seed-message-docker seed-user-docker \
+	proto-message
 
 # Lance tout : cluster, build, import et déploiement
 up:
@@ -54,20 +60,60 @@ logs:
 logs-media:
 	kubectl logs -n $(NAMESPACE) -f -l app=media-service
 
-# --- Migrations & Seeds (dev local avec Docker Compose) ---
+# --- Migrations & Seeds (K8s par defaut) ---
 
-# Migrations DB Message (001 = tables, 003 = messages, 004 = groups.user_id uuid)
+# Migrations DB Message (schéma cible)
 migrate-message:
-	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/001_create_tables.sql
-	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/003_messages_uuid.sql
-	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/004_groups_user_id_uuid.sql
+	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-message -o jsonpath='{.items[0].metadata.name}'); \
+	if [ -z "$$POD" ]; then \
+		echo "Pod postgres-message introuvable dans le namespace $(NAMESPACE)."; \
+		echo "Deploie d'abord K8s: kubectl apply -k infra/k8s/base/"; \
+		exit 1; \
+	fi; \
+	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(MESSAGE_DB_NAME) < services/message/migrations/001_create_tables.sql
 
-# Seed DB Message (groups + messages)
+# Migration DB Message legacy (optionnelle)
+migrate-message-legacy:
+	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-message -o jsonpath='{.items[0].metadata.name}'); \
+	if [ -z "$$POD" ]; then \
+		echo "Pod postgres-message introuvable dans le namespace $(NAMESPACE)."; \
+		echo "Deploie d'abord K8s: kubectl apply -k infra/k8s/base/"; \
+		exit 1; \
+	fi; \
+	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(MESSAGE_DB_NAME) < services/message/migrations/005_conversations_refactor.sql
+
+# Seed DB Message (conversations + messages)
 seed-message:
-	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/002_seed_data.sql
+	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-message -o jsonpath='{.items[0].metadata.name}'); \
+	if [ -z "$$POD" ]; then \
+		echo "Pod postgres-message introuvable dans le namespace $(NAMESPACE)."; \
+		echo "Deploie d'abord K8s: kubectl apply -k infra/k8s/base/"; \
+		exit 1; \
+	fi; \
+	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(MESSAGE_DB_NAME) < services/message/migrations/002_seed_data.sql
 
 # Seed DB User (nécessite que le user-service ait créé les tables)
 seed-user:
+	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-user -o jsonpath='{.items[0].metadata.name}'); \
+	if [ -z "$$POD" ]; then \
+		echo "Pod postgres-user introuvable dans le namespace $(NAMESPACE)."; \
+		echo "Deploie d'abord K8s: kubectl apply -k infra/k8s/base/"; \
+		exit 1; \
+	fi; \
+	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(USER_DB_NAME) < infra/seed/001_seed_users.sql
+
+# --- Fallback Docker Compose ---
+
+migrate-message-docker:
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/001_create_tables.sql
+
+migrate-message-legacy-docker:
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/005_conversations_refactor.sql
+
+seed-message-docker:
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/002_seed_data.sql
+
+seed-user-docker:
 	docker exec -i storm-postgres-user psql -U storm -d storm_user_db < infra/seed/001_seed_users.sql
 
 # Régénère message.pb.go (copie dans api/v1 car protoc sort par go_package)

@@ -355,6 +355,51 @@
 
 ---
 
+### Backlog ciblé — Gestion des groupes (P3)
+
+```
+✅ Lot 0 — Cadrage (validé)
+  - Convention métier: on parle de "conversation" (et non "group")
+  - Convention DB cible: groups -> conversations_users, group_id -> conversation_id
+  - Convention API/Proto cible: group_id -> conversation_id (avec compat temporaire côté gateway/WS)
+  - Convention rôles memberships: 0=member, 1=admin, 2=owner
+  - Hors périmètre P3: stabilisation globale gateway/auth (JWT middleware + refactor auth)
+
+✅ Lot 1 — Refonte modèle de données (message-service)
+  - Introduire une vraie entité groupe/conversation (métadonnées + timestamps)
+  - Déplacer les memberships dans une table dédiée avec contraintes (unique, FK, soft delete)
+  - Ajouter index de perf pour listage messages/membres par groupe
+  - Mettre à jour migrations + seed sur le nouveau schéma
+
+✅ Lot 2 — Couche métier Groupes/Memberships (message-service)
+  - Créer repo + service pour groupes et memberships
+  - Implémenter règles de rôles owner/admin/member (ajout/suppression membres, changement rôle, suppression groupe)
+  - Gérer leave group + garde-fous (ex: empêcher la suppression du dernier owner)
+
+✅ Lot 3 — Contrats NATS/protobuf Groupes
+  - Ajouter les messages proto: create/get/list group, add/remove/list members, update role, leave/delete
+  - Ajouter sujets NATS dédiés (GROUP_CREATE, GROUP_GET, GROUP_LIST_FOR_USER, GROUP_ADD_MEMBER, GROUP_REMOVE_MEMBER, GROUP_LIST_MEMBERS, GROUP_UPDATE_ROLE, GROUP_LEAVE, GROUP_DELETE)
+  - Standardiser les codes d'erreur métiers (forbidden, not_found, conflict, bad_request)
+
+✅ Lot 4 — Sécurité métier sur messages (message-service)
+  - Vérifier l'appartenance au groupe avant NEW_MESSAGE / LIST_MESSAGES
+  - Vérifier ownership/permissions avant UPDATE_MESSAGE / DELETE_MESSAGE
+  - Bloquer tout accès message si non-membre
+
+✅ Lot 5 — Intégration Gateway pour API Groupes (sans stabilisation auth)
+  - Exposer routes REST /api/groups (+ endpoints members)
+  - Mapper JSON <-> protobuf pour toutes les opérations groupes
+  - Valider l'accès WS aux rooms conversation:<id> (compat temporaire group:<id>) via une vérification membership côté NATS
+  - NOTE: la stabilisation globale gateway/auth (JWT middleware, refactor auth) est gérée par un autre développeur
+
+✅ Lot 6 — Qualité & validation
+  - Tests unitaires repo/service groupes + memberships
+  - Tests handlers NATS groupes + permissions
+  - Tests de non-régression CRUD messages après ajout des contrôles membership
+```
+
+---
+
 ### SEMAINE 4 (COURS)
 
 **Performance + Scale**
@@ -412,6 +457,7 @@
 ```
 
 ---
+
 
 ## P4 - Media + Notification Services + Infra K8s + Monitoring
 
