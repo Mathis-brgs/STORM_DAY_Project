@@ -129,25 +129,13 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 			return
 		}
 
-		respMsg, err := h.nats.Request("NEW_MESSAGE", protoData, 5*time.Second)
-		if err != nil {
-			log.Printf("Erreur NATS Request (NEW_MESSAGE) : %v", err)
-			return
+		if err := h.nats.Publish("NEW_MESSAGE", protoData); err != nil {
+			log.Printf("Erreur publication sur NATS (NEW_MESSAGE) : %v", err)
 		}
 
-		var natsResp apiv1.SendMessageResponse
-		if err := proto.Unmarshal(respMsg.Data, &natsResp); err != nil {
-			log.Printf("Erreur unmarshal NATS response : %v", err)
-			return
-		}
-
-		if natsResp.Ok && natsResp.Data != nil {
-			// Le broadcast est maintenant géré par le message-service via NATS.
-			// La Gateway recevra le message via sa souscription message.broadcast.> dans hub.go
-			log.Printf("Message sauvegardé et prêt pour broadcast via NATS")
-		} else if natsResp.Error != nil {
-			log.Printf("Erreur message-service : %s - %s", natsResp.Error.Code, natsResp.Error.Message)
-		}
+		// Echo local pour que l'emetteur (et les clients de la room locale) reçoive le message instantanement.
+		finalPayload, _ := json.Marshal(msg)
+		h.hub.BroadcastToRoom(msg.Room, finalPayload)
 
 	case models.WSActionTyping:
 		userId, _ := socket.Session().Load("userId")
