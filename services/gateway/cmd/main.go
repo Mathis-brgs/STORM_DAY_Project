@@ -80,11 +80,24 @@ func SetupServer(nc common.NatsConn) *chi.Mux {
 	r.Post("/api/messages", messageHandler.Send)
 
 	r.Get("/api/messages/{id}", messageHandler.GetById)
-	r.Get("/api/messages", messageHandler.List)
+	r.Get("/api/messages", messageHandler.GetByGroupId)
 
 	r.Put("/api/messages/{id}", messageHandler.Update)
 
 	r.Delete("/api/messages/{id}", messageHandler.Delete)
+	r.Post("/api/messages/{id}/receipt", messageHandler.AckReceipt)
+
+	// Groups/Conversations (proxy vers message-service)
+	r.Post("/api/groups", messageHandler.CreateGroup)
+	r.Get("/api/groups", messageHandler.ListGroups)
+	r.Get("/api/groups/{id}", messageHandler.GetGroup)
+	r.Delete("/api/groups/{id}", messageHandler.DeleteGroup)
+	r.Post("/api/groups/{id}/leave", messageHandler.LeaveGroup)
+
+	r.Post("/api/groups/{id}/members", messageHandler.AddGroupMember)
+	r.Get("/api/groups/{id}/members", messageHandler.ListGroupMembers)
+	r.Patch("/api/groups/{id}/members/{user_id}/role", messageHandler.UpdateGroupMemberRole)
+	r.Delete("/api/groups/{id}/members/{user_id}", messageHandler.RemoveGroupMember)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -135,6 +148,5 @@ func SetupServer(nc common.NatsConn) *chi.Mux {
 
 	// Metrics Prometheus
 	r.Handle("/metrics", promhttp.Handler())
-
 	return r
 }

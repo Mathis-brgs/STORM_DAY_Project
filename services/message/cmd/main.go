@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"strings"
 
@@ -29,6 +30,7 @@ func main() {
 	defer nc.Drain()
 
 	var messageRepo repo.MessageRepo
+	var conversationRepo repo.ConversationRepo
 	if strings.ToLower(os.Getenv("STORAGE")) == "postgres" {
 		db, err := postgres.NewDB()
 		if err != nil {
@@ -36,19 +38,45 @@ func main() {
 		}
 		defer db.Close()
 		messageRepo = postgres.NewMessageRepo(db)
+		conversationRepo = postgres.NewConversationRepo(db)
 		log.Println("storage: postgres")
 	} else {
 		messageRepo = memory.NewMessageRepo()
+		conversationRepo = memory.NewConversationRepo()
 		log.Println("storage: memory")
 	}
 
-	svc := service.NewMessageService(messageRepo)
-	handler := natsh.NewMessageHandler(svc)
+	messageSvc := service.NewMessageService(messageRepo)
+	conversationSvc := service.NewConversationService(conversationRepo)
+	handler := natsh.NewMessageHandler(messageSvc, conversationSvc)
 
 	if err := handler.Listen(nc); err != nil {
 		log.Fatalf("listen: %v", err)
 	}
 
+	startHTTPHealthServer()
+
 	log.Println("ready, listening on NATS")
 	select {}
+}
+
+func startHTTPHealthServer() {
+	httpPort := os.Getenv("HTTP_PORT")
+	if strings.TrimSpace(httpPort) == "" {
+		httpPort = "8080"
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	})
+
+	addr := ":" + httpPort
+	go func() {
+		log.Printf("health server listening on %s", addr)
+		if err := http.ListenAndServe(addr, mux); err != nil {
+			log.Fatalf("health server listen: %v", err)
+		}
+	}()
 }

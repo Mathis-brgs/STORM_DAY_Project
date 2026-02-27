@@ -2,6 +2,7 @@ package ws
 
 import (
 	"encoding/json"
+	"errors"
 	"gateway/internal/models"
 	"log"
 	"strconv"
@@ -93,6 +94,10 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 	switch msg.Action {
 
 	case models.WSActionJoin:
+		if isConversationRoom(msg.Room) && !h.canJoinConversationRoom(socket, msg.Room) {
+			log.Printf("Acces refuse a la room %s", msg.Room)
+			return
+		}
 		h.hub.Join(msg.Room, socket)
 		socket.Session().Store("room", msg.Room)
 
@@ -103,24 +108,19 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 			msg.User = userId.(string)
 		}
 
-		// On extrait l'ID du groupe de la room (ex: "group:123")
-		roomParts := strings.Split(msg.Room, ":")
-		if len(roomParts) < 2 || roomParts[0] != "group" {
-			log.Printf("Format de room invalide pour un message : %s", msg.Room)
-			return
-		}
-
-		groupID, err := strconv.Atoi(roomParts[1])
+		// Compat room: conversation:<id> (nouveau) ou group:<id> (legacy).
+		conversationID, err := parseConversationRoomID(msg.Room)
 		if err != nil {
-			log.Printf("ID de groupe invalide dans la room %s : %v", msg.Room, err)
+			log.Printf("Format de room invalide pour un message : %s", msg.Room)
 			return
 		}
 
 		// Pour un message permanent, on passe par le message-service
 		protoReq := &apiv1.SendMessageRequest{
-			GroupId:  int32(groupID),
-			SenderId: msg.User,
-			Content:  msg.Content,
+			GroupId:        int32(conversationID),
+			ConversationId: int32(conversationID),
+			SenderId:       msg.User,
+			Content:        msg.Content,
 		}
 
 		protoData, err := proto.Marshal(protoReq)
@@ -160,4 +160,67 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 	default:
 		log.Printf("Action inconnue : %s", msg.Action)
 	}
+}
+
+func parseConversationRoomID(room string) (int, error) {
+	roomParts := strings.Split(room, ":")
+	if len(roomParts) < 2 {
+		return 0, errors.New("invalid room format")
+	}
+	if roomParts[0] != "group" && roomParts[0] != "conversation" {
+		return 0, errors.New("unsupported room prefix")
+	}
+	conversationID, err := strconv.Atoi(roomParts[1])
+	if err != nil {
+		return 0, err
+	}
+	if conversationID <= 0 {
+		return 0, errors.New("invalid conversation id")
+	}
+	return conversationID, nil
+}
+
+func isConversationRoom(room string) bool {
+	return strings.HasPrefix(room, "group:") || strings.HasPrefix(room, "conversation:")
+}
+
+func (h *Handler) canJoinConversationRoom(socket Socket, room string) bool {
+	userIDRaw, ok := socket.Session().Load("userId")
+	if !ok {
+		return false
+	}
+	userID, ok := userIDRaw.(string)
+	if !ok || strings.TrimSpace(userID) == "" {
+		return false
+	}
+
+	conversationID, err := parseConversationRoomID(room)
+	if err != nil {
+		return false
+	}
+
+	protoReq := &apiv1.GroupGetRequest{
+		ActorId:        userID,
+		ConversationId: int32(conversationID),
+		GroupId:        int32(conversationID),
+	}
+	data, err := proto.Marshal(protoReq)
+	if err != nil {
+		log.Printf("Erreur marshal GROUP_GET: %v", err)
+		return false
+	}
+
+	reply, err := h.nats.Request("GROUP_GET", data, 3*time.Second)
+	if err != nil {
+		log.Printf("Erreur request GROUP_GET: %v", err)
+		return false
+	}
+
+	var resp apiv1.GroupGetResponse
+	if err := proto.Unmarshal(reply.Data, &resp); err != nil {
+		log.Printf("Erreur unmarshal GROUP_GET: %v", err)
+		return false
+	}
+
+	return resp.GetOk()
 }
