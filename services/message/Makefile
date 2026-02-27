@@ -1,5 +1,9 @@
 # Message Service - Commandes locales
-.PHONY: run run-postgres build proto proto-new migrate seed test clean
+.PHONY: run run-postgres build proto proto-new migrate migrate-legacy seed migrate-docker migrate-legacy-docker seed-docker test clean
+
+NAMESPACE=storm
+MESSAGE_DB_NAME=message_db
+POSTGRES_USER=storm
 
 # Lance le service avec stockage mémoire (défaut)
 run:
@@ -28,15 +32,42 @@ proto:
 proto-new:
 	PATH="$$(go env GOPATH)/bin:$$PATH" protoc -I. --go_out=. --go_opt=paths=source_relative api/v1/message.proto
 
-# Migrations (depuis la racine: make migrate-message)
-# 001 = tables, 003 = messages (id int, sender_id uuid, group_id int), 004 = groups.user_id uuid
+# Migrations standard (création schéma cible) - K8s
 migrate:
-	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < migrations/001_create_tables.sql
-	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < migrations/003_messages_uuid.sql
-	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < migrations/004_groups_user_id_uuid.sql
+	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-message -o jsonpath='{.items[0].metadata.name}'); \
+	if [ -z "$$POD" ]; then \
+		echo "Pod postgres-message introuvable dans le namespace $(NAMESPACE)."; \
+		echo "Déploie d'abord K8s: kubectl apply -k infra/k8s/base/"; \
+		exit 1; \
+	fi; \
+	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(MESSAGE_DB_NAME) < migrations/001_create_tables.sql
 
-# Seed (depuis la racine: make seed-message)
+# Migration legacy (optionnelle) pour nettoyer/convertir un ancien schéma - K8s.
+migrate-legacy:
+	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-message -o jsonpath='{.items[0].metadata.name}'); \
+	if [ -z "$$POD" ]; then \
+		echo "Pod postgres-message introuvable dans le namespace $(NAMESPACE)."; \
+		exit 1; \
+	fi; \
+	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(MESSAGE_DB_NAME) < migrations/005_conversations_refactor.sql
+
+# Seed - K8s
 seed:
+	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-message -o jsonpath='{.items[0].metadata.name}'); \
+	if [ -z "$$POD" ]; then \
+		echo "Pod postgres-message introuvable dans le namespace $(NAMESPACE)."; \
+		exit 1; \
+	fi; \
+	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(MESSAGE_DB_NAME) < migrations/002_seed_data.sql
+
+# Fallback Docker Compose
+migrate-docker:
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < migrations/001_create_tables.sql
+
+migrate-legacy-docker:
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < migrations/005_conversations_refactor.sql
+
+seed-docker:
 	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < migrations/002_seed_data.sql
 
 # Tests
