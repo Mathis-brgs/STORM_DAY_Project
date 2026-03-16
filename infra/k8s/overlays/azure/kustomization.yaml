@@ -83,7 +83,7 @@ patches:
                 name: azure-credentials
                 key: PG_PASSWORD
           - name: DB_NAME
-            value: user_db
+            value: storm_user_db
           - name: NATS_URL
             valueFrom:
               configMapKeyRef:

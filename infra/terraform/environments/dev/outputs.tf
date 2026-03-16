@@ -14,9 +14,14 @@ output "postgresql_host" {
   value       = module.postgresql.postgresql_fqdn
 }
 
-output "db_name" {
-  description = "Nom de la base de données"
-  value       = module.postgresql.db_name
+output "user_db_name" {
+  description = "Nom de la base de données users"
+  value       = module.postgresql.user_db_name
+}
+
+output "message_db_name" {
+  description = "Nom de la base de données messages"
+  value       = module.postgresql.message_db_name
 }
 
 output "redis_hostname" {
@@ -52,4 +57,19 @@ output "media_container" {
 output "managed_identity_client_id" {
   description = "Client ID de la Managed Identity (pour configurer AKS)"
   value       = module.managed_identity.identity_client_id
+}
+
+output "acr_login_server" {
+  description = "URL de login ACR (ex: stormdevacr.azurecr.io)"
+  value       = module.acr.acr_login_server
+}
+
+output "aks_cluster_name" {
+  description = "Nom du cluster AKS"
+  value       = module.aks.cluster_name
+}
+
+output "oidc_issuer_url" {
+  description = "URL OIDC Issuer AKS"
+  value       = module.aks.oidc_issuer_url
 }

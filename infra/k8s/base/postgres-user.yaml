@@ -43,13 +43,13 @@ spec:
                   name: postgres-credentials
                   key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
-              value: user_db
+              value: storm_user_db
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "storm", "-d", "user_db"]
+              command: ["pg_isready", "-U", "storm", "-d", "storm_user_db"]
             initialDelaySeconds: 5
             periodSeconds: 5
           resources:

@@ -36,3 +36,9 @@ variable "private_subnet_cidr" {
   type        = string
   default     = "10.0.10.0/24"
 }
+
+variable "aks_subnet_cidr" {
+  description = "CIDR du subnet AKS"
+  type        = string
+  default     = "10.0.3.0/24"
+}

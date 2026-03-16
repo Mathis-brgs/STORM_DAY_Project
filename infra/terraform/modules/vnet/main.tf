@@ -51,6 +51,14 @@ resource "azurerm_subnet" "private_postgresql" {
   }
 }
 
+# Subnet dédié AKS
+resource "azurerm_subnet" "aks" {
+  name                 = "${var.project_name}-aks-${var.environment}"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.aks_subnet_cidr]
+}
+
 # Zone DNS privée pour PostgreSQL Flexible Server
 # Azure génère un nom DNS interne : <server>.private.postgres.database.azure.com
 resource "azurerm_private_dns_zone" "postgresql" {
