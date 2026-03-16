@@ -80,9 +80,9 @@ variable "acr_name" {
 
 # AKS
 variable "kubernetes_version" {
-  description = "Version Kubernetes"
+  description = "Version Kubernetes (vide = dernière stable supportée dans la région)"
   type        = string
-  default     = "1.28"
+  default     = ""
 }
 
 variable "aks_node_count" {

@@ -122,7 +122,7 @@ module "redis" {
   capacity      = 0      # C0 = 250 MB
   family        = "C"
   sku_name      = "Basic"  # ~$16/mois
-  redis_version = "7"
+  redis_version = "6"
 }
 
 # ------------------------------------------------------------------------------
