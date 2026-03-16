@@ -2,8 +2,11 @@ package message
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"gateway/internal/models"
 
@@ -135,6 +138,7 @@ func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
 	out := models.GroupResponse{OK: resp.GetOk()}
 	if resp.GetData() != nil {
 		out.Data = toGroupModel(resp.GetData())
+		h.resolveGroupDisplayName(out.Data, actorID)
 	}
 	if resp.GetError() != nil {
 		out.Error = &models.SendMessageError{
@@ -191,6 +195,7 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 	out := models.GroupsResponse{OK: resp.GetOk()}
 	for _, item := range resp.GetData() {
 		if mapped := toGroupModel(item); mapped != nil {
+			h.resolveGroupDisplayName(mapped, actorID)
 			out.Data = append(out.Data, *mapped)
 		}
 	}
@@ -697,4 +702,103 @@ func groupIDFromPath(r *http.Request) (int, bool) {
 		return 0, false
 	}
 	return int(id), true
+}
+
+// resolveGroupDisplayName résout le nom d'affichage d'une conversation si le nom en DB est vide.
+// - Conv à 2 membres : nom de l'autre membre
+// - Conv à 3+ membres : "user1, user2, user3"
+// Si le nom est déjà renseigné (renommé par l'utilisateur), on le garde tel quel.
+func (h *Handler) resolveGroupDisplayName(group *models.Group, actorID string) {
+	if group == nil || group.Name != "" {
+		return
+	}
+
+	members := h.fetchGroupMembers(group.ID, actorID)
+	if len(members) == 0 {
+		return
+	}
+
+	var names []string
+	for _, m := range members {
+		if m.UserID == actorID {
+			continue
+		}
+		name := h.fetchUsername(m.UserID)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+
+	if len(names) > 0 {
+		group.Name = strings.Join(names, ", ")
+	}
+}
+
+// fetchGroupMembers récupère les membres d'une conversation via NATS.
+func (h *Handler) fetchGroupMembers(conversationID int, actorID string) []models.GroupMember {
+	protoReq := &apiv1.GroupListMembersRequest{
+		ActorId:        actorID,
+		ConversationId: int32(conversationID),
+		GroupId:        int32(conversationID),
+	}
+	data, err := proto.Marshal(protoReq)
+	if err != nil {
+		return nil
+	}
+
+	reply, err := h.nc.Request(subjectGroupListMembers, data, requestTimeout)
+	if err != nil {
+		return nil
+	}
+
+	var resp apiv1.GroupListMembersResponse
+	if err := proto.Unmarshal(reply.Data, &resp); err != nil || !resp.GetOk() {
+		return nil
+	}
+
+	members := make([]models.GroupMember, 0, len(resp.GetData()))
+	for _, item := range resp.GetData() {
+		if mapped := toGroupMemberModel(item); mapped != nil {
+			members = append(members, *mapped)
+		}
+	}
+	return members
+}
+
+// fetchUsername récupère le username d'un utilisateur via NATS (user service NestJS).
+func (h *Handler) fetchUsername(userID string) string {
+	request := struct {
+		Pattern string            `json:"pattern"`
+		Data    map[string]string `json:"data"`
+		ID      string            `json:"id"`
+	}{
+		Pattern: "user.get",
+		Data:    map[string]string{"id": userID},
+		ID:      time.Now().String(),
+	}
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return ""
+	}
+
+	msg, err := h.nc.Request("user.get", payload, 2*time.Second)
+	if err != nil {
+		log.Printf("[Gateway] fetchUsername: user.get error for %s: %v", userID, err)
+		return ""
+	}
+
+	var wrapper struct {
+		Response struct {
+			Username    string `json:"username"`
+			DisplayName string `json:"display_name"`
+		} `json:"response"`
+	}
+	if err := json.Unmarshal(msg.Data, &wrapper); err != nil {
+		return ""
+	}
+
+	if wrapper.Response.DisplayName != "" {
+		return wrapper.Response.DisplayName
+	}
+	return wrapper.Response.Username
 }
