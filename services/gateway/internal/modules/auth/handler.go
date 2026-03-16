@@ -132,6 +132,9 @@ func proxyRequest(nc common.NatsConn, subject string, w http.ResponseWriter, r *
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		_, err = w.Write(msg.Data)
+		if err != nil {
+			log.Printf("[Gateway] Write Error: %v", err)
+		}
 		return
 	}
 
