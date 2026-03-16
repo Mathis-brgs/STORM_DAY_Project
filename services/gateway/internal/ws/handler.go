@@ -107,6 +107,10 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 		if userId != nil {
 			msg.User = userId.(string)
 		}
+		// Ajouter le username pour que le front puisse l'afficher
+		if username, ok := socket.Session().Load("username"); ok {
+			msg.Username = username.(string)
+		}
 
 		// Compat room: conversation:<id> (nouveau) ou group:<id> (legacy).
 		conversationID, err := parseConversationRoomID(msg.Room)
@@ -115,7 +119,7 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 			return
 		}
 
-		// Pour un message permanent, on passe par le message-service
+		// Pour un message permanent, on passe par le message-service via Request/Reply
 		protoReq := &apiv1.SendMessageRequest{
 			GroupId:        int32(conversationID),
 			ConversationId: int32(conversationID),
@@ -129,13 +133,23 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 			return
 		}
 
-		if err := h.nats.Publish("NEW_MESSAGE", protoData); err != nil {
-			log.Printf("Erreur publication sur NATS (NEW_MESSAGE) : %v", err)
+		reply, err := h.nats.Request("NEW_MESSAGE", protoData, 5*time.Second)
+		if err != nil {
+			log.Printf("Erreur request NEW_MESSAGE : %v", err)
+			return
 		}
 
-		// Echo local pour que l'emetteur (et les clients de la room locale) reçoive le message instantanement.
+		var resp apiv1.SendMessageResponse
+		if err := proto.Unmarshal(reply.Data, &resp); err != nil || !resp.GetOk() {
+			log.Printf("Message non sauvegardé : %v", err)
+			return
+		}
+
+		// Broadcast via NATS seulement si le message a été sauvegardé avec succès
 		finalPayload, _ := json.Marshal(msg)
-		h.hub.BroadcastToRoom(msg.Room, finalPayload)
+		if err := h.nats.Publish("message.broadcast."+msg.Room, finalPayload); err != nil {
+			log.Printf("Erreur publication broadcast NATS : %v", err)
+		}
 
 	case models.WSActionTyping:
 		userId, _ := socket.Session().Load("userId")
