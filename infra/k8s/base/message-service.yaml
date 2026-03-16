@@ -48,7 +48,7 @@ spec:
                   name: postgres-credentials
                   key: POSTGRES_PASSWORD
             - name: DB_NAME
-              value: message_db
+              value: storm_message_db
             - name: HTTP_PORT
               value: "8080"
           readinessProbe:

@@ -22,7 +22,7 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID := extractActorID(r, req.ActorID)
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.GroupResponse{
 			OK:    false,
@@ -91,7 +91,7 @@ func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID := extractActorID(r, "")
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.GroupResponse{
 			OK:    false,
@@ -151,7 +151,7 @@ func (h *Handler) GetGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
-	actorID := extractActorID(r, "")
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.GroupsResponse{
 			OK:    false,
@@ -227,7 +227,7 @@ func (h *Handler) AddGroupMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID := extractActorID(r, req.ActorID)
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.GroupMemberResponse{
 			OK:    false,
@@ -305,7 +305,7 @@ func (h *Handler) ListGroupMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID := extractActorID(r, "")
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.GroupMembersResponse{
 			OK:    false,
@@ -393,7 +393,7 @@ func (h *Handler) UpdateGroupMemberRole(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	actorID := extractActorID(r, req.ActorID)
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.GroupMemberResponse{
 			OK:    false,
@@ -472,7 +472,7 @@ func (h *Handler) RemoveGroupMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID := extractActorID(r, "")
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.GroupResponse{
 			OK:    false,
@@ -539,7 +539,7 @@ func (h *Handler) LeaveGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID := extractActorID(r, "")
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.GroupResponse{
 			OK:    false,
@@ -605,7 +605,7 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actorID := extractActorID(r, "")
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.GroupResponse{
 			OK:    false,
