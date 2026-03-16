@@ -46,9 +46,17 @@ resource "azurerm_postgresql_flexible_server" "main" {
   }
 }
 
-# Base de données "storm" dans le serveur
-resource "azurerm_postgresql_flexible_server_database" "storm" {
-  name      = "storm"
+# Base de données users
+resource "azurerm_postgresql_flexible_server_database" "user_db" {
+  name      = "storm_user_db"
+  server_id = azurerm_postgresql_flexible_server.main.id
+  collation = "en_US.utf8"
+  charset   = "utf8"
+}
+
+# Base de données messages
+resource "azurerm_postgresql_flexible_server_database" "message_db" {
+  name      = "storm_message_db"
   server_id = azurerm_postgresql_flexible_server.main.id
   collation = "en_US.utf8"
   charset   = "utf8"

@@ -8,9 +8,14 @@ output "postgresql_host" {
   value       = azurerm_postgresql_flexible_server.main.fqdn
 }
 
-output "db_name" {
-  description = "Nom de la base de données"
-  value       = azurerm_postgresql_flexible_server_database.storm.name
+output "user_db_name" {
+  description = "Nom de la base de données users"
+  value       = azurerm_postgresql_flexible_server_database.user_db.name
+}
+
+output "message_db_name" {
+  description = "Nom de la base de données messages"
+  value       = azurerm_postgresql_flexible_server_database.message_db.name
 }
 
 output "server_name" {

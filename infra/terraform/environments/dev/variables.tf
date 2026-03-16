@@ -44,6 +44,12 @@ variable "private_subnet_cidr" {
   default     = "10.0.10.0/24"
 }
 
+variable "aks_subnet_cidr" {
+  description = "CIDR du subnet AKS"
+  type        = string
+  default     = "10.0.3.0/24"
+}
+
 # Base de données
 variable "db_username" {
   description = "Username admin PostgreSQL"
@@ -63,6 +69,32 @@ variable "storage_account_name" {
   description = "Nom du storage account Azure (globalement unique)"
   type        = string
   default     = "stormdev"
+}
+
+# ACR
+variable "acr_name" {
+  description = "Nom de l'ACR (globalement unique, alphanum, 5-50 chars, ex: stormdevacr)"
+  type        = string
+  default     = "stormdevacr"
+}
+
+# AKS
+variable "kubernetes_version" {
+  description = "Version Kubernetes"
+  type        = string
+  default     = "1.28"
+}
+
+variable "aks_node_count" {
+  description = "Nombre de nodes AKS initial"
+  type        = number
+  default     = 2
+}
+
+variable "aks_vm_size" {
+  description = "Taille des VMs AKS"
+  type        = string
+  default     = "Standard_B2s"
 }
 
 # Budget

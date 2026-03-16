@@ -67,6 +67,7 @@ module "vnet" {
   vnet_cidr           = var.vnet_cidr
   public_subnet_cidrs = var.public_subnet_cidrs
   private_subnet_cidr = var.private_subnet_cidr
+  aks_subnet_cidr     = var.aks_subnet_cidr
 }
 
 # ------------------------------------------------------------------------------
@@ -151,6 +152,40 @@ module "managed_identity" {
   location            = var.location
   resource_group_name = azurerm_resource_group.main.name
   storage_account_id  = module.storage.storage_account_id
+}
+
+# ------------------------------------------------------------------------------
+# Module ACR - Azure Container Registry
+# ------------------------------------------------------------------------------
+
+module "acr" {
+  source = "../../modules/acr"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  acr_name            = var.acr_name
+  sku                 = "Basic"
+}
+
+# ------------------------------------------------------------------------------
+# Module AKS - Azure Kubernetes Service
+# ------------------------------------------------------------------------------
+
+module "aks" {
+  source = "../../modules/aks"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  aks_subnet_id      = module.vnet.aks_subnet_id
+  acr_id             = module.acr.acr_id
+  kubernetes_version = var.kubernetes_version
+  node_count         = var.aks_node_count
+  vm_size            = var.aks_vm_size
 }
 
 # ------------------------------------------------------------------------------
