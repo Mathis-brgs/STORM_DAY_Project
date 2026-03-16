@@ -43,7 +43,7 @@ spec:
                   name: postgres-credentials
                   key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
-              value: message_db
+              value: storm_message_db
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
