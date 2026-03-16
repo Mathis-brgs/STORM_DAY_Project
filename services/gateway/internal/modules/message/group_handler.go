@@ -77,6 +77,31 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Ajouter les membres supplémentaires si member_ids est fourni
+	if resp.GetOk() && resp.GetData() != nil && len(req.MemberIDs) > 0 {
+		conversationID := resp.GetData().GetId()
+		for _, memberID := range req.MemberIDs {
+			if memberID == actorID {
+				continue // le créateur est déjà membre (owner)
+			}
+			addReq := &apiv1.GroupAddMemberRequest{
+				ActorId:        actorID,
+				ConversationId: conversationID,
+				GroupId:        conversationID,
+				UserId:         memberID,
+				Role:           0, // member
+			}
+			addData, err := proto.Marshal(addReq)
+			if err != nil {
+				log.Printf("[Gateway] CreateGroup: marshal add-member error: %v", err)
+				continue
+			}
+			if _, err := h.nc.Request(subjectGroupAddMember, addData, requestTimeout); err != nil {
+				log.Printf("[Gateway] CreateGroup: add-member %s error: %v", memberID, err)
+			}
+		}
+	}
+
 	status := http.StatusOK
 	if !resp.GetOk() && resp.GetError() != nil {
 		status = statusFromServiceCode(resp.GetError().GetCode(), http.StatusUnprocessableEntity)

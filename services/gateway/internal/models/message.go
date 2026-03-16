@@ -131,9 +131,10 @@ type GroupMember struct {
 }
 
 type CreateGroupRequest struct {
-	ActorID   string `json:"actor_id,omitempty"`
-	Name      string `json:"name"`
-	AvatarURL string `json:"avatar_url,omitempty"`
+	ActorID   string   `json:"actor_id,omitempty"`
+	Name      string   `json:"name"`
+	AvatarURL string   `json:"avatar_url,omitempty"`
+	MemberIDs []string `json:"member_ids,omitempty"`
 }
 
 type GroupResponse struct {
