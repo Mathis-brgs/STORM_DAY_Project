@@ -56,6 +56,16 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Valider le token une seule fois et récupérer l'identité de l'utilisateur
+	actor := h.actorFromToken(r)
+	if actor == nil {
+		respondJSON(w, http.StatusUnauthorized, models.SendMessageResponse{
+			OK:    false,
+			Error: &models.SendMessageError{Code: "UNAUTHORIZED", Message: "invalid or missing token"},
+		})
+		return
+	}
+
 	var req models.SendMessageRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondJSON(w, http.StatusBadRequest, models.SendMessageResponse{
@@ -76,9 +86,10 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Sécurité : on impose l'ID de l'utilisateur authentifié comme sender
 	protoReq := &apiv1.SendMessageRequest{
 		GroupId:        int32(conversationID),
-		SenderId:       req.SenderID,
+		SenderId:       actor.ID,
 		Content:        req.Content,
 		Attachment:     req.Attachment,
 		ConversationId: int32(conversationID),
@@ -125,6 +136,22 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 	if !resp.GetOk() && resp.GetError() != nil {
 		status = statusFromServiceCode(resp.GetError().GetCode(), http.StatusUnprocessableEntity)
 	}
+
+	// Broadcast temps réel via NATS pour notifier les clients WebSocket
+	if resp.GetOk() {
+		room := "conversation:" + strconv.Itoa(conversationID)
+		broadcast := models.InputMessage{
+			Action:   models.WSActionMessage,
+			Room:     room,
+			User:     actor.ID,
+			Username: actor.Username,
+			Content:  req.Content,
+		}
+		if payload, err := json.Marshal(broadcast); err == nil {
+			_ = h.nc.Publish("message.broadcast."+room, payload)
+		}
+	}
+
 	respondJSON(w, status, out)
 }
 
@@ -514,19 +541,27 @@ func resolveConversationID(conversationID, legacyGroupID int) int {
 	return 0
 }
 
-func (h *Handler) actorIDFromToken(r *http.Request) string {
+func (h *Handler) actorFromToken(r *http.Request) *auth.UserInfo {
 	token := r.Header.Get("Authorization")
 	if len(token) > 7 && token[:7] == "Bearer " {
 		token = token[7:]
 	}
 	if token == "" {
-		return ""
+		return nil
 	}
 	result, err := auth.ValidateToken(h.nc, token)
 	if err != nil || !result.IsValid {
+		return nil
+	}
+	return &result.User
+}
+
+func (h *Handler) actorIDFromToken(r *http.Request) string {
+	actor := h.actorFromToken(r)
+	if actor == nil {
 		return ""
 	}
-	return result.User.ID
+	return actor.ID
 }
 
 
