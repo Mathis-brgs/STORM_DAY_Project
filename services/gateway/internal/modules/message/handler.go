@@ -3,10 +3,10 @@ package message
 import (
 	"encoding/json"
 	"gateway/internal/common"
+	"gateway/internal/modules/auth"
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"gateway/internal/models"
@@ -210,7 +210,7 @@ func (h *Handler) GetByGroupId(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	actorID := extractActorID(r, "")
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.ListMessagesResponse{
 			OK: false, Error: &models.SendMessageError{Code: "BAD_REQUEST", Message: "actor_id (or user_id / X-User-ID) required"},
@@ -296,7 +296,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	actorID := extractActorID(r, body.ActorID)
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.UpdateMessageResponse{
 			OK: false, Error: &models.SendMessageError{Code: "BAD_REQUEST", Message: "actor_id (or user_id / X-User-ID) required"},
@@ -360,7 +360,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	actorID := extractActorID(r, "")
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.DeleteMessageResponse{
 			OK: false, Error: &models.SendMessageError{Code: "BAD_REQUEST", Message: "actor_id (or user_id / X-User-ID) required"},
@@ -431,7 +431,7 @@ func (h *Handler) AckReceipt(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	actorID := extractActorID(r, body.ActorID)
+	actorID := h.actorIDFromToken(r)
 	if actorID == "" {
 		respondJSON(w, http.StatusBadRequest, models.AckMessageResponse{
 			OK: false, Error: &models.SendMessageError{Code: "BAD_REQUEST", Message: "actor_id (or user_id / X-User-ID) required"},
@@ -514,21 +514,21 @@ func resolveConversationID(conversationID, legacyGroupID int) int {
 	return 0
 }
 
-func extractActorID(r *http.Request, bodyActorID string) string {
-	if id := strings.TrimSpace(bodyActorID); id != "" {
-		return id
+func (h *Handler) actorIDFromToken(r *http.Request) string {
+	token := r.Header.Get("Authorization")
+	if len(token) > 7 && token[:7] == "Bearer " {
+		token = token[7:]
 	}
-	if id := strings.TrimSpace(r.URL.Query().Get("actor_id")); id != "" {
-		return id
+	if token == "" {
+		return ""
 	}
-	if id := strings.TrimSpace(r.URL.Query().Get("user_id")); id != "" {
-		return id
+	result, err := auth.ValidateToken(h.nc, token)
+	if err != nil || !result.IsValid {
+		return ""
 	}
-	if id := strings.TrimSpace(r.Header.Get("X-User-ID")); id != "" {
-		return id
-	}
-	return ""
+	return result.User.ID
 }
+
 
 func statusFromServiceCode(code string, fallback int) int {
 	switch code {

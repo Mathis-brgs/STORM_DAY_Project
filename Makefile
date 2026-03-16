@@ -4,8 +4,8 @@ NAMESPACE=storm
 GATEWAY_PORT=30080
 IMAGES=storm/user-service:latest storm/gateway-service:latest storm/message-service:latest storm/media-service:latest
 POSTGRES_USER=storm
-MESSAGE_DB_NAME=message_db
-USER_DB_NAME=user_db
+MESSAGE_DB_NAME=storm_message_db
+USER_DB_NAME=storm_user_db
 
 .PHONY: up down clean build deploy import restart status logs logs-media \
 	migrate-message migrate-message-legacy seed-message seed-user \
