@@ -5,6 +5,7 @@ import (
 	"gateway/internal/common"
 	"gateway/internal/modules/auth"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -547,12 +548,19 @@ func (h *Handler) actorFromToken(r *http.Request) *auth.UserInfo {
 		token = token[7:]
 	}
 	if token == "" {
+		log.Printf("[Gateway] actorFromToken: no token in Authorization header")
 		return nil
 	}
 	result, err := auth.ValidateToken(h.nc, token)
-	if err != nil || !result.IsValid {
+	if err != nil {
+		log.Printf("[Gateway] actorFromToken: ValidateToken error: %v", err)
 		return nil
 	}
+	if !result.IsValid {
+		log.Printf("[Gateway] actorFromToken: token rejected (valid=false)")
+		return nil
+	}
+	log.Printf("[Gateway] actorFromToken: authenticated user %s (%s)", result.User.Username, result.User.ID)
 	return &result.User
 }
 
