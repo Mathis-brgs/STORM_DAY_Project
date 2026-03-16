@@ -62,6 +62,14 @@ logs-media:
 
 # --- Migrations & Seeds (K8s par defaut) ---
 
+# Crée la DB message si elle n'existe pas (volume existant créé avec un ancien nom)
+create-message-db:
+	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-message -o jsonpath='{.items[0].metadata.name}'); \
+	if [ -z "$$POD" ]; then \
+		echo "Pod postgres-message introuvable."; exit 1; \
+	fi; \
+	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d postgres -c "CREATE DATABASE $(MESSAGE_DB_NAME);" 2>/dev/null || true
+
 # Migrations DB Message (schéma cible)
 migrate-message:
 	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-message -o jsonpath='{.items[0].metadata.name}'); \
