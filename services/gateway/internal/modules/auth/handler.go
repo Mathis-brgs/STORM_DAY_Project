@@ -17,15 +17,15 @@ func NewHandler(nc common.NatsConn) *Handler {
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	proxyRequest(h.nc, "auth.register", w, r)
+	proxyRequest(h.nc, "auth.register", w, r, http.StatusCreated)
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	proxyRequest(h.nc, "auth.login", w, r)
+	proxyRequest(h.nc, "auth.login", w, r, http.StatusOK)
 }
 
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
-	proxyRequest(h.nc, "auth.refresh", w, r)
+	proxyRequest(h.nc, "auth.refresh", w, r, http.StatusOK)
 }
 
 // Logout requires extracting the user ID from the token (validated via NATS first)
@@ -87,7 +87,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func proxyRequest(nc common.NatsConn, subject string, w http.ResponseWriter, r *http.Request) {
+func proxyRequest(nc common.NatsConn, subject string, w http.ResponseWriter, r *http.Request, successStatus int) {
 	var body any
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "Bad Request", http.StatusBadRequest)
@@ -167,8 +167,9 @@ func proxyRequest(nc common.NatsConn, subject string, w http.ResponseWriter, r *
 		return
 	}
 
-	// Si response existe -> retourner 200 avec response comme body
+	// Si response existe -> retourner avec le status de succès demandé et response comme body
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(successStatus)
 	_, err = w.Write(wrapper.Response)
 	if err != nil {
 		log.Printf("[Gateway] Write Error: %v", err)
