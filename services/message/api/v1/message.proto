@@ -6,21 +6,24 @@ option go_package = "github.com/Mathis-brgs/storm-project/services/message/api/v
 
 // SendMessageRequest est le payload reçu sur NEW_MESSAGE
 message SendMessageRequest {
-  int32 group_id = 1;
+  int32 group_id = 1; // legacy compat
   string sender_id = 2;   // UUID
   string content = 3;
   string attachment = 4; // optionnel
+  int32 conversation_id = 5;
 }
 
 // ChatMessage représente un message persisté
 message ChatMessage {
   int32 id = 1;           // PK row
   string sender_id = 2;   // UUID
-  int32 group_id = 3;
+  int32 group_id = 3;     // legacy compat
   string content = 4;
   string attachment = 5;
   int64 created_at = 6;  // Unix timestamp
   int64 updated_at = 7;
+  int32 conversation_id = 8;
+  int64 received_at = 9; // Timestamp de reception pour l'acteur courant (0 = non disponible)
 }
 
 // Error dans la réponse
@@ -50,9 +53,11 @@ message GetMessageResponse {
 
 // ListMessages - liste paginnée par Group ID
 message ListMessagesRequest {
-  int32 group_id = 1;
+  int32 group_id = 1; // legacy compat
   int32 limit = 2;
   string cursor = 3;
+  int32 conversation_id = 4;
+  string actor_id = 5; // UUID
 }
 
 // ListMessagesResponse enveloppe la réponse
@@ -67,6 +72,7 @@ message ListMessagesResponse {
 message UpdateMessageRequest {
   int32 id = 1;
   string content = 2;
+  string actor_id = 3; // UUID
 }
 
 // UpdateMessageResponse enveloppe la réponse
@@ -79,10 +85,153 @@ message UpdateMessageResponse {
 // DeleteMessageRequest est le payload reçu sur DELETE_MESSAGE
 message DeleteMessageRequest {
   int32 id = 1;
+  string actor_id = 2; // UUID
 }
 
 // DeleteMessageResponse enveloppe la réponse
 message DeleteMessageResponse {
+  bool ok = 1;
+  Error error = 2;
+}
+
+// AckMessageRequest marque un message comme reçu pour actor_id.
+message AckMessageRequest {
+  int32 id = 1;
+  string actor_id = 2; // UUID
+  int64 received_at = 3; // optionnel (0 => NOW)
+}
+
+// AckMessageResponse enveloppe la réponse.
+message AckMessageResponse {
+  bool ok = 1;
+  ChatMessage data = 2;
+  Error error = 3;
+}
+
+// Group représente une conversation côté API groupe.
+message Group {
+  int32 id = 1;
+  string name = 2;
+  string avatar_url = 3;
+  string created_by = 4; // UUID
+  int64 created_at = 5;
+  int64 updated_at = 6;
+}
+
+// GroupMember représente un membership user <-> group.
+message GroupMember {
+  int32 id = 1;
+  int32 conversation_id = 2;
+  int32 group_id = 3; // legacy compat
+  string user_id = 4; // UUID
+  int32 role = 5; // 0=member,1=admin,2=owner
+  int64 created_at = 6;
+}
+
+message GroupCreateRequest {
+  string actor_id = 1; // UUID
+  string name = 2;
+  string avatar_url = 3;
+}
+
+message GroupCreateResponse {
+  bool ok = 1;
+  Group data = 2;
+  Error error = 3;
+}
+
+message GroupGetRequest {
+  string actor_id = 1; // UUID
+  int32 conversation_id = 2;
+  int32 group_id = 3; // legacy compat
+}
+
+message GroupGetResponse {
+  bool ok = 1;
+  Group data = 2;
+  Error error = 3;
+}
+
+message GroupListForUserRequest {
+  string user_id = 1; // UUID
+}
+
+message GroupListForUserResponse {
+  bool ok = 1;
+  repeated Group data = 2;
+  Error error = 3;
+}
+
+message GroupAddMemberRequest {
+  string actor_id = 1; // UUID
+  int32 conversation_id = 2;
+  int32 group_id = 3; // legacy compat
+  string user_id = 4; // UUID
+  int32 role = 5; // 0=member,1=admin,2=owner
+}
+
+message GroupAddMemberResponse {
+  bool ok = 1;
+  GroupMember data = 2;
+  Error error = 3;
+}
+
+message GroupRemoveMemberRequest {
+  string actor_id = 1; // UUID
+  int32 conversation_id = 2;
+  int32 group_id = 3; // legacy compat
+  string user_id = 4; // UUID
+}
+
+message GroupRemoveMemberResponse {
+  bool ok = 1;
+  Error error = 2;
+}
+
+message GroupListMembersRequest {
+  string actor_id = 1; // UUID
+  int32 conversation_id = 2;
+  int32 group_id = 3; // legacy compat
+}
+
+message GroupListMembersResponse {
+  bool ok = 1;
+  repeated GroupMember data = 2;
+  Error error = 3;
+}
+
+message GroupUpdateRoleRequest {
+  string actor_id = 1; // UUID
+  int32 conversation_id = 2;
+  int32 group_id = 3; // legacy compat
+  string user_id = 4; // UUID
+  int32 role = 5; // 0=member,1=admin,2=owner
+}
+
+message GroupUpdateRoleResponse {
+  bool ok = 1;
+  GroupMember data = 2;
+  Error error = 3;
+}
+
+message GroupLeaveRequest {
+  string user_id = 1; // UUID
+  int32 conversation_id = 2;
+  int32 group_id = 3; // legacy compat
+}
+
+message GroupLeaveResponse {
+  bool ok = 1;
+  Error error = 2;
+}
+
+message GroupDeleteRequest {
+  string actor_id = 1; // UUID
+  int32 conversation_id = 2;
+  int32 group_id = 3; // legacy compat
+}
+
+message GroupDeleteResponse {
   bool ok = 1;
   Error error = 2;
 }

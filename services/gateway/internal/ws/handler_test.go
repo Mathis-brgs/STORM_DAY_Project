@@ -58,8 +58,19 @@ func TestHandler_OnClose(t *testing.T) {
 
 func TestHandler_OnMessage_Join(t *testing.T) {
 	hub := NewHub()
-	handler := NewHandler(hub, &MockNatsConn{})
+	mockNats := &MockNatsConn{
+		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
+			if subject != "GROUP_GET" {
+				t.Fatalf("expected GROUP_GET, got %s", subject)
+			}
+			resp := &apiv1.GroupGetResponse{Ok: true}
+			respBytes, _ := proto.Marshal(resp)
+			return &nats.Msg{Data: respBytes}, nil
+		},
+	}
+	handler := NewHandler(hub, mockNats)
 	socket := &MockSocket{addr: "1"}
+	socket.Session().Store("userId", "a0000001-0000-0000-0000-000000000001")
 
 	msg := models.InputMessage{
 		Action: models.WSActionJoin,
@@ -77,6 +88,39 @@ func TestHandler_OnMessage_Join(t *testing.T) {
 	room, _ := socket.Session().Load("room")
 	if room != "group:123" {
 		t.Errorf("Expected room group:123 in session, got %v", room)
+	}
+}
+
+func TestHandler_OnMessage_Join_Forbidden(t *testing.T) {
+	hub := NewHub()
+	mockNats := &MockNatsConn{
+		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
+			resp := &apiv1.GroupGetResponse{
+				Ok: false,
+				Error: &apiv1.Error{
+					Code:    "FORBIDDEN",
+					Message: "forbidden",
+				},
+			}
+			respBytes, _ := proto.Marshal(resp)
+			return &nats.Msg{Data: respBytes}, nil
+		},
+	}
+	handler := NewHandler(hub, mockNats)
+	socket := &MockSocket{addr: "1"}
+	socket.Session().Store("userId", "a0000001-0000-0000-0000-000000000001")
+
+	msg := models.InputMessage{
+		Action: models.WSActionJoin,
+		Room:   "conversation:123",
+	}
+	payload, _ := json.Marshal(msg)
+	message := &MockMessage{payload: payload}
+
+	handler.onMessage(socket, message)
+
+	if _, exists := hub.Rooms["conversation:123"]; exists {
+		t.Error("User should not have joined forbidden room")
 	}
 }
 
@@ -130,6 +174,31 @@ func TestHandler_OnMessage_Message(t *testing.T) {
 	}
 	if res.Content != "hello" {
 		t.Errorf("Expected broadcast content 'hello', got %s", res.Content)
+	}
+}
+
+func TestHandler_OnMessage_Message_ConversationRoom(t *testing.T) {
+	hub := NewHub()
+	mockNats := &MockNatsConn{}
+	handler := NewHandler(hub, mockNats)
+	socket := &MockSocket{addr: "1"}
+	socket.Session().Store("userId", "456")
+
+	msg := models.InputMessage{
+		Action:  models.WSActionMessage,
+		Room:    "conversation:123",
+		Content: "hello",
+	}
+	payload, _ := json.Marshal(msg)
+	message := &MockMessage{payload: payload}
+
+	handler.onMessage(socket, message)
+
+	if mockNats.LastPublishedSubject != "NEW_MESSAGE" {
+		t.Errorf("Expected NATS publish to NEW_MESSAGE, got %s", mockNats.LastPublishedSubject)
+	}
+	if len(mockNats.LastPublishedData) == 0 {
+		t.Error("Expected NATS payload to be non-empty")
 	}
 }
 

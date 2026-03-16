@@ -4,10 +4,11 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 
-	"github.com/google/uuid"
 	models "github.com/Mathis-brgs/storm-project/services/message/internal/models"
 	"github.com/Mathis-brgs/storm-project/services/message/internal/repo"
+	"github.com/google/uuid"
 )
 
 const maxMessageContentLength = 10000
@@ -26,8 +27,8 @@ func (s *MessageService) SendMessage(msg *models.ChatMessage) (*models.ChatMessa
 	if msg.SenderID == uuid.Nil {
 		return nil, errors.New("sender ID is empty")
 	}
-	if msg.GroupID == 0 {
-		return nil, errors.New("group ID is empty")
+	if msg.ConversationID == 0 {
+		return nil, errors.New("conversation ID is empty")
 	}
 
 	content := strings.TrimSpace(msg.Content)
@@ -52,8 +53,8 @@ func (s *MessageService) GetMessageById(id int) (*models.ChatMessage, error) {
 	return s.messageRepo.GetMessageById(id)
 }
 
-func (s *MessageService) GetMessagesByGroupId(groupID int) ([]*models.ChatMessage, error) {
-	return s.messageRepo.GetMessagesByGroupId(groupID)
+func (s *MessageService) GetMessagesByConversationID(conversationID int) ([]*models.ChatMessage, error) {
+	return s.messageRepo.GetMessagesByConversationID(conversationID)
 }
 
 func (s *MessageService) UpdateMessageById(id int, content string) (*models.ChatMessage, error) {
@@ -74,6 +75,34 @@ func (s *MessageService) UpdateMessageById(id int, content string) (*models.Chat
 		return nil, err
 	}
 	return updatedMsg, nil
+}
+
+func (s *MessageService) MarkMessageReceivedByID(id int, userID uuid.UUID, receivedAt time.Time) (*models.MessageReceipt, error) {
+	if id == 0 {
+		return nil, errors.New("id is empty")
+	}
+	if userID == uuid.Nil {
+		return nil, errors.New("user ID is empty")
+	}
+	if receivedAt.IsZero() {
+		receivedAt = time.Now()
+	}
+
+	receipt, err := s.messageRepo.MarkMessageReceivedByID(id, userID, receivedAt)
+	if err != nil {
+		return nil, err
+	}
+	return receipt, nil
+}
+
+func (s *MessageService) GetMessageReceiptByID(id int, userID uuid.UUID) (*models.MessageReceipt, error) {
+	if id == 0 {
+		return nil, errors.New("id is empty")
+	}
+	if userID == uuid.Nil {
+		return nil, errors.New("user ID is empty")
+	}
+	return s.messageRepo.GetMessageReceiptByID(id, userID)
 }
 
 func (s *MessageService) DeleteMessageById(id int) error {

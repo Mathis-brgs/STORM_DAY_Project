@@ -24,7 +24,7 @@ func NewHub() *Hub {
 // StartNatsSubscription écoute les messages NATS pour les redistribuer aux clients WS.
 func (h *Hub) StartNatsSubscription(nc NatsConn) error {
 	// On écoute sur message.broadcast.> pour recevoir les messages destinés à n'importe quelle room.
-	// Le joker '>' permet de matcher plusieurs niveaux (ex: message.broadcast.group:123 ou message.broadcast.user.abc)
+	// Le joker '>' permet de matcher plusieurs niveaux (ex: message.broadcast.conversation:123 ou message.broadcast.user.abc)
 	_, err := nc.Subscribe("message.broadcast.>", func(m *nats.Msg) {
 		parts := strings.Split(m.Subject, ".")
 		if len(parts) < 3 {
