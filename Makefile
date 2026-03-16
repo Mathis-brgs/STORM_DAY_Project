@@ -100,6 +100,12 @@ seed-message:
 	fi; \
 	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(MESSAGE_DB_NAME) < services/message/migrations/002_seed_data.sql
 
+# Crée les tables user (users, jwt) dans storm_user_db
+create-user-tables:
+	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-user -o jsonpath='{.items[0].metadata.name}'); \
+	if [ -z "$$POD" ]; then echo "Pod postgres-user introuvable."; exit 1; fi; \
+	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(USER_DB_NAME) < infra/seed/000_create_user_tables.sql
+
 # Seed DB User (nécessite que le user-service ait créé les tables)
 seed-user:
 	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-user -o jsonpath='{.items[0].metadata.name}'); \

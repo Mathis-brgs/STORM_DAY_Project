@@ -11,7 +11,7 @@ BEGIN;
 -- 1) Table conversations (métadonnées conversation)
 CREATE TABLE IF NOT EXISTS conversations (
     id         SERIAL PRIMARY KEY,
-    name       VARCHAR(120) NOT NULL DEFAULT 'Untitled conversation',
+    name       VARCHAR(120) NOT NULL DEFAULT '',
     avatar_url TEXT,
     created_by UUID,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
