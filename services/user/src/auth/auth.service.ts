@@ -41,7 +41,7 @@ export class AuthService {
       username: dto.username,
       display_name: dto.display_name,
       email: dto.email,
-      password_hash: await bcrypt.hash(dto.password, 10),
+      password_hash: await bcrypt.hash(dto.password, parseInt(process.env.BCRYPT_ROUNDS ?? '8', 10)),
     });
     await this.userRepo.save(user);
 

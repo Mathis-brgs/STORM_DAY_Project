@@ -80,3 +80,6 @@ crash.log
 
 # Plans de travail quotidiens (locaux uniquement)
 PLAN_*.md
+
+# Secrets K8s (ne jamais committer)
+infra/k8s/overlays/azure/secrets-azure.yaml

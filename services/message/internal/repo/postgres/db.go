@@ -16,10 +16,11 @@ func NewDB() (*sql.DB, error) {
 	user := getEnv("DB_USER", "storm")
 	password := getEnv("DB_PASSWORD", "password")
 	dbname := getEnv("DB_NAME", "storm_message_db")
+	sslmode := getEnv("DB_SSLMODE", "disable")
 
 	connStr := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname,
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		host, port, user, password, dbname, sslmode,
 	)
 
 	db, err := sql.Open("postgres", connStr)

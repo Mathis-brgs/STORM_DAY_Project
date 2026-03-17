@@ -26,6 +26,7 @@ namespace: storm
 resources:
   - ../../base/namespace.yaml
   - ../../base/nats.yaml             # NATS reste dans le cluster AKS
+  - ../../base/nats-exporter.yaml    # Exporter métriques NATS → Prometheus
   - ../../base/gateway-service.yaml
   - ../../base/user-service.yaml
   - ../../base/message-service.yaml
@@ -132,6 +133,8 @@ patches:
               configMapKeyRef:
                 name: storm-config
                 key: NATS_URL
+          - name: STORAGE
+            value: postgres
 
   # Patcher le media-service pour Azure Blob Storage
   - target:
