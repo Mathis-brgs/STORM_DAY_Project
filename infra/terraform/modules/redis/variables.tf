@@ -21,7 +21,7 @@ variable "resource_group_name" {
 variable "redis_version" {
   description = "Version Redis"
   type        = string
-  default     = "7"
+  default     = "6"
 }
 
 # capacity : 0=C0 250MB, 1=C1 1GB, 2=C2 6GB...

@@ -32,9 +32,8 @@ resource "azurerm_redis_cache" "main" {
   # Redis version
   redis_version = var.redis_version  # "7"
 
-  # Pas de TLS obligatoire (le code n'est pas configuré pour)
-  non_ssl_port_enabled = true
-  minimum_tls_version = "1.0"
+  non_ssl_port_enabled = false
+  minimum_tls_version = "1.2"
 
   redis_configuration {
     maxmemory_policy = "allkeys-lru"

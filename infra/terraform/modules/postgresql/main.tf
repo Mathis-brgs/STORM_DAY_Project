@@ -34,7 +34,8 @@ resource "azurerm_postgresql_flexible_server" "main" {
 
   # Backups
   backup_retention_days        = var.environment == "prod" ? 35 : 7
-  geo_redundant_backup_enabled = false  # Coûteux, désactivé en dev
+  geo_redundant_backup_enabled  = false  # Coûteux, désactivé en dev
+  public_network_access_enabled = false  # Obligatoire quand VNet/subnet est utilisé
 
   # Zone de disponibilité
   zone = "1"
