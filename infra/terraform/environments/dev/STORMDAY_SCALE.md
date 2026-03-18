@@ -50,6 +50,63 @@ kubectl get nodes
 kubectl rollout restart deployment -n storm
 ```
 
+### 6. Scale message-service → 20 replicas + augmenter HPA max
+
+```bash
+# Augmenter HPA max de 5 à 20
+kubectl patch hpa message-hpa -n storm --type='merge' \
+  -p '{"spec":{"maxReplicas":20}}'
+
+# Scale immédiat à 10 replicas
+kubectl scale deployment message-service -n storm --replicas=10
+kubectl rollout status deployment/message-service -n storm
+```
+
+**Capacité attendue (infra seule, sans batching) :**
+- 10 replicas × ~400 msg/s = **~4 000 msg/s** en DB
+- 20 replicas × ~400 msg/s = **~8 000 msg/s** en DB
+
+**Capacité attendue (avec batching — voir Prio 8 plan) :**
+- 10 replicas × ~5 000 msg/s = **~50 000 msg/s** en DB ✅
+
+---
+
+### 7. Scale gateway → 8 replicas + déployer fix SO_REUSEPORT
+
+> ⚠️ Prérequis : fix SO_REUSEPORT doit être mergé dans l'image gateway avant Storm Day (voir PLAN_2026-03-18.md Prio 7)
+
+```bash
+# Scale gateway à 8 replicas
+kubectl scale deployment gateway-service -n storm --replicas=8
+kubectl rollout status deployment/gateway-service -n storm
+
+# Scale user-service à 8 replicas
+kubectl scale deployment user-service -n storm --replicas=8
+kubectl rollout status deployment/user-service -n storm
+
+# Vérifier la distribution sur les nodes
+kubectl get pods -n storm -l app=gateway-service -o wide
+```
+
+### 7. Test de charge final avant Storm Day
+
+```bash
+# Modifier le target dans ws-stress-max.js → 100 000 VUs, ramp 30 min
+# Puis lancer
+k6 run /tmp/ws-stress-max.js
+```
+
+Objectifs à valider :
+- **100 000 connexions WS simultanées** tenues ≥ 2 min
+- **50 000 messages/s** écrits en DB (minimum)
+- **500 000 livraisons/s** via NATS broadcast → WS clients
+- Gateway UP, CPU < 70%, RSS < 80% de la limit
+- Résilience : simuler des incidents (pod kill, node drain) et mesurer le temps de recovery
+
+**Prérequis code avant Storm Day :**
+- ✅ SO_REUSEPORT gateway (Prio 7 — 100k WS)
+- ✅ Write batching message-service (Prio 8 — 50k msg/s DB)
+
 ---
 
 ## Après le Storm Day (8 avril soir), revenir aux valeurs dev :
