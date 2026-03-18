@@ -4,6 +4,7 @@ import (
 	"gateway/internal/common"
 	"gateway/internal/modules/auth"
 	"gateway/internal/modules/message"
+	"gateway/internal/modules/media"
 	"gateway/internal/modules/user"
 	"gateway/internal/ws"
 	"log"
@@ -60,6 +61,7 @@ func SetupServer(nc common.NatsConn) *chi.Mux {
 	authHandler := auth.NewHandler(nc)
 	userHandler := user.NewHandler(nc)
 	messageHandler := message.NewHandler(nc)
+	mediaHandler := media.NewHandler(nc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -78,6 +80,9 @@ func SetupServer(nc common.NatsConn) *chi.Mux {
 
 	// Message (proxy vers message-service)
 	r.Post("/api/messages", messageHandler.Send)
+
+	// Media upload (gateway -> NATS -> media-service)
+	r.Post("/media/upload", mediaHandler.Upload)
 
 	r.Get("/api/messages/{id}", messageHandler.GetById)
 	r.Get("/api/messages", messageHandler.GetByGroupId)

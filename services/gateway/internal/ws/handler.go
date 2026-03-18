@@ -120,11 +120,61 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 		}
 
 		// Pour un message permanent, on passe par le message-service via Request/Reply
+		// If the client included a base64 attachment, upload it first via NATS to media-service
+		if msg.AttachmentBase64 != "" {
+			uploadReq := struct {
+				Filename    string `json:"filename"`
+				ContentType string `json:"contentType"`
+				Size        int64  `json:"size"`
+				DataBase64  string `json:"dataBase64"`
+			}{
+				Filename:    msg.AttachmentFilename,
+				ContentType: msg.AttachmentContentType,
+				Size:        int64(len(msg.AttachmentBase64)),
+				DataBase64:  msg.AttachmentBase64,
+			}
+
+			payload, err := json.Marshal(uploadReq)
+			if err != nil {
+				log.Printf("failed to marshal media upload request: %v", err)
+				return
+			}
+
+			reply, err := h.nats.Request("media.upload.requested", payload, 10*time.Second)
+			if err != nil {
+				log.Printf("media upload request failed: %v", err)
+				return
+			}
+
+			var mediaResp map[string]any
+			if err := json.Unmarshal(reply.Data, &mediaResp); err != nil {
+				log.Printf("invalid response from media service: %v", err)
+				return
+			}
+
+			if errVal, ok := mediaResp["error"]; ok {
+				log.Printf("media service error: %v", errVal)
+				return
+			}
+
+			if id, ok := mediaResp["mediaId"].(string); ok {
+				msg.Attachment = id
+			} else if id, ok := mediaResp["MediaID"].(string); ok { // fallback
+				msg.Attachment = id
+			}
+			// Clear base64 to avoid broadcasting heavy payloads
+			msg.AttachmentBase64 = ""
+			msg.AttachmentFilename = ""
+			msg.AttachmentContentType = ""
+		}
+
+		// Pour un message permanent, on passe par le message-service via Request/Reply
 		protoReq := &apiv1.SendMessageRequest{
 			GroupId:        int32(conversationID),
 			ConversationId: int32(conversationID),
 			SenderId:       msg.User,
 			Content:        msg.Content,
+			Attachment:     msg.Attachment,
 		}
 
 		protoData, err := proto.Marshal(protoReq)
