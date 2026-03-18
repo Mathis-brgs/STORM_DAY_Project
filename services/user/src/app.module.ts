@@ -18,6 +18,12 @@ import { Jwt } from './jwt.entity.js';
       database: process.env.DB_NAME || 'user_db',
       entities: [User, Jwt],
       synchronize: true, // DEV only - creates tables automatically
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+      extra: {
+        max: parseInt(process.env.DB_POOL_SIZE ?? '5', 10),
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
+      },
     }),
     AuthModule,
     UserModule,

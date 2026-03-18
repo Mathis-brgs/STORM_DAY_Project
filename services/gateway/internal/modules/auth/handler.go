@@ -73,7 +73,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	resp, err := h.nc.Request("auth.logout", logoutPayload, 2*time.Second)
+	resp, err := h.nc.Request("auth.logout", logoutPayload, 10*time.Second)
 	if err != nil {
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
 		return
@@ -114,7 +114,7 @@ func proxyRequest(nc common.NatsConn, subject string, w http.ResponseWriter, r *
 	}
 
 	log.Printf("[Gateway] Sending NATS request to %s with payload: %s", subject, string(payload))
-	msg, err := nc.Request(subject, payload, 2*time.Second)
+	msg, err := nc.Request(subject, payload, 10*time.Second)
 	if err != nil {
 		log.Printf("[Gateway] NATS Error for %s: %v", subject, err)
 		http.Error(w, "Service unavailable: "+err.Error(), http.StatusServiceUnavailable)

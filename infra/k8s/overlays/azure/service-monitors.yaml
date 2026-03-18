@@ -1,0 +1,75 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: storm-gateway
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - storm
+  selector:
+    matchLabels:
+      app: gateway-service
+  endpoints:
+    - targetPort: 8080
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: storm-notification
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - storm
+  selector:
+    matchLabels:
+      app: notification-service
+  endpoints:
+    - targetPort: 8080
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: storm-media
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - storm
+  selector:
+    matchLabels:
+      app: media-service
+  endpoints:
+    - targetPort: 8080
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: storm-user
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - storm
+  selector:
+    matchLabels:
+      app: user-service
+  endpoints:
+    - targetPort: 3000
+      path: /metrics
+      interval: 15s
