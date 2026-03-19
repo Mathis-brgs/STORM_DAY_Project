@@ -11,6 +11,6 @@
 
 **GET /api/groups/:id/members** : `username`, `display_name`, `avatar_url`.
 
-**WS** : `typing` (username = display_name), `delivered`, `seen` (+ `message_id`).
+**WS** : `typing` (username = display_name), `delivered`, `seen` (+ `message_id`). **Frame `message`** inclut désormais **`reply_to_id`** et **`reply_to`** { id, sender_id, sender_name, content } quand le message est une réponse — la citation peut s’afficher sans attendre un resync GET. Un resync GET après réception WS reste un bon filet de sécurité ; si la citation n’apparaît pas après ~1 s, vérifier que GET /api/messages renvoie bien `reply_to` (backend OK si migration 006 appliquée).
 
 Voir migration `services/message/migrations/006_message_reply_status_forward_seen.sql`.

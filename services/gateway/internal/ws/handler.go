@@ -104,6 +104,14 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 	case models.WSActionJoin:
 		if isConversationRoom(msg.Room) && !h.canJoinConversationRoom(socket, msg.Room) {
 			log.Printf("Acces refuse a la room %s", msg.Room)
+			// Retour explicite : sinon le front croit être dans la room alors qu'aucun broadcast n'arrivera.
+			feedback, _ := json.Marshal(map[string]any{
+				"action": "error",
+				"code":   "JOIN_DENIED",
+				"room":   msg.Room,
+				"detail": "GROUP_GET forbidden or failed — check membership and message-service / migrations",
+			})
+			_ = socket.WriteMessage(gws.OpcodeText, feedback)
 			return
 		}
 		h.hub.Join(msg.Room, socket)
@@ -184,6 +192,9 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 			Content:        msg.Content,
 			Attachment:     msg.Attachment,
 		}
+		if msg.ReplyToID != nil && *msg.ReplyToID > 0 {
+			protoReq.ReplyToId = int32(*msg.ReplyToID)
+		}
 
 		protoData, err := proto.Marshal(protoReq)
 		if err != nil {
@@ -201,6 +212,23 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 		if err := proto.Unmarshal(reply.Data, &resp); err != nil || !resp.GetOk() {
 			log.Printf("Message non sauvegardé : %v", err)
 			return
+		}
+
+		// PK + reply_to : même forme que GET /api/messages pour afficher la citation sans resync.
+		if d := resp.GetData(); d != nil {
+			mid := int(d.GetId())
+			msg.ID = mid
+			msg.MessageID = strconv.Itoa(mid)
+			if rto := d.GetReplyTo(); rto != nil && rto.GetId() != 0 {
+				rid := int(rto.GetId())
+				msg.ReplyToID = &rid
+				msg.ReplyTo = &models.ReplyToData{
+					ID:         rid,
+					SenderID:   rto.GetSenderId(),
+					SenderName: h.displayNameForUser(rto.GetSenderId()),
+					Content:    rto.GetContent(),
+				}
+			}
 		}
 
 		// Broadcast via NATS seulement si le message a été sauvegardé avec succès

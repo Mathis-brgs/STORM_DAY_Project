@@ -11,7 +11,6 @@ import (
 )
 
 const (
-	defaultConversationName  = "Untitled conversation"
 	maxConversationNameChars = 120
 )
 
@@ -39,10 +38,9 @@ func (s *ConversationService) CreateConversation(ownerID uuid.UUID, name, avatar
 		return nil, ErrInvalidUserID
 	}
 
+	// Nom vide en DB : le gateway résout l’affichage (autre membre / liste de membres).
+	// Ne pas stocker "Untitled conversation" : ça empêchait resolveGroupDisplayName de s’exécuter.
 	normalizedName := strings.TrimSpace(name)
-	if normalizedName == "" {
-		normalizedName = defaultConversationName
-	}
 	if len(normalizedName) > maxConversationNameChars {
 		return nil, fmt.Errorf("%w: name too long", ErrInvalidConversation)
 	}
