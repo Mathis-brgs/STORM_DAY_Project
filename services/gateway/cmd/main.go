@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"gateway/internal/common"
 	"gateway/internal/modules/auth"
 	"gateway/internal/modules/message"
 	"gateway/internal/modules/user"
 	"gateway/internal/ws"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -42,10 +46,34 @@ func main() {
 	r := SetupServer(nc)
 
 	addr := ":8080"
-	log.Printf("Serveur démarré sur http://localhost%s", addr)
-	if err := http.ListenAndServe(addr, r); err != nil {
-		log.Fatal(err)
+
+	// SO_REUSEPORT : N listeners sur le même port = N queues d'accept parallèles
+	// Permet d'exploiter tous les CPUs pour accepter les connexions WS simultanées
+	const SO_REUSEPORT = 0xf // Linux constant
+	lc := net.ListenConfig{
+		Control: func(network, address string, c syscall.RawConn) error {
+			return c.Control(func(fd uintptr) {
+				if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, SO_REUSEPORT, 1); err != nil {
+					log.Printf("SO_REUSEPORT non supporté: %v", err)
+				}
+			})
+		},
 	}
+
+	numListeners := runtime.NumCPU()
+	server := &http.Server{Handler: r}
+	errCh := make(chan error, numListeners)
+
+	for i := 0; i < numListeners; i++ {
+		ln, err := lc.Listen(context.Background(), "tcp", addr)
+		if err != nil {
+			log.Fatalf("listen[%d]: %v", i, err)
+		}
+		go func() { errCh <- server.Serve(ln) }()
+	}
+
+	log.Printf("Serveur démarré sur http://localhost%s (%d listeners SO_REUSEPORT)", addr, numListeners)
+	log.Fatal(<-errCh)
 }
 
 func SetupServer(nc common.NatsConn) *chi.Mux {

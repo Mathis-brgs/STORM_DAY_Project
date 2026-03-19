@@ -7,7 +7,14 @@ import (
 
 	"github.com/lxzan/gws"
 	"github.com/nats-io/nats.go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
+
+var wsActiveConnections = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "storm_ws_active_connections",
+	Help: "Nombre exact de connexions WebSocket actives sur ce pod",
+})
 
 type Hub struct {
 	mu sync.RWMutex

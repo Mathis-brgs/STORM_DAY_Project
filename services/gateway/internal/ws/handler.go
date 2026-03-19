@@ -38,6 +38,8 @@ func (h *Handler) onOpen(socket Socket) {
 	username, _ := socket.Session().Load("username")
 	log.Printf("Nouvelle connexion socket établie : %s (%s)", username, userId)
 
+	wsActiveConnections.Inc()
+
 	// Rejoindre automatiquement une room privée pour l'utilisateur
 	if userId != nil {
 		h.hub.Join("user:"+userId.(string), socket)
@@ -68,6 +70,7 @@ func (h *Handler) OnClose(socket *gws.Conn, err error) {
 }
 
 func (h *Handler) onClose(socket Socket, err error) {
+	wsActiveConnections.Dec()
 	if roomName, exist := socket.Session().Load("room"); exist {
 		h.hub.Leave(roomName.(string), socket)
 	}
