@@ -17,6 +17,17 @@ var (
 	testUserOther  = uuid.MustParse("a0000004-0000-0000-0000-000000000004")
 )
 
+func TestConversationServiceCreateConversationEmptyNameStoredEmpty(t *testing.T) {
+	svc := NewConversationService(memory.NewConversationRepo())
+	conversation, err := svc.CreateConversation(testUserOwner, "   ", "")
+	if err != nil {
+		t.Fatalf("CreateConversation() error = %v", err)
+	}
+	if conversation.Name != "" {
+		t.Fatalf("expected empty name for dynamic display resolution, got %q", conversation.Name)
+	}
+}
+
 func TestConversationServiceCreateConversationCreatesOwnerMembership(t *testing.T) {
 	svc := NewConversationService(memory.NewConversationRepo())
 

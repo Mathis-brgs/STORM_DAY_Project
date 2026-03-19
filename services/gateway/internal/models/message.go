@@ -93,9 +93,10 @@ type GetMessageData struct {
 }
 
 // ListMessagesResponse est la réponse de GET /api/messages
+// data sans omitempty : une liste vide doit sérialiser en "data":[] (le front attend un tableau).
 type ListMessagesResponse struct {
 	OK         bool              `json:"ok"`
-	Data       []SendMessageData `json:"data,omitempty"`
+	Data       []SendMessageData `json:"data"`
 	NextCursor string            `json:"next_cursor,omitempty"`
 	Error      *SendMessageError `json:"error,omitempty"`
 }
@@ -173,7 +174,7 @@ type GroupResponse struct {
 
 type GroupsResponse struct {
 	OK    bool              `json:"ok"`
-	Data  []Group           `json:"data,omitempty"`
+	Data  []Group           `json:"data"`
 	Error *SendMessageError `json:"error,omitempty"`
 }
 
@@ -196,6 +197,6 @@ type GroupMemberResponse struct {
 
 type GroupMembersResponse struct {
 	OK    bool              `json:"ok"`
-	Data  []GroupMember     `json:"data,omitempty"`
+	Data  []GroupMember     `json:"data"`
 	Error *SendMessageError `json:"error,omitempty"`
 }

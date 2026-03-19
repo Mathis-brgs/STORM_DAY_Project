@@ -21,5 +21,10 @@ type InputMessage struct {
 	AttachmentFilename    string `json:"attachmentFilename,omitempty"`
 	AttachmentContentType string `json:"attachmentContentType,omitempty"`
 	Attachment            string `json:"attachment,omitempty"`
-	MessageID             string `json:"message_id,omitempty"`
+	// ID / message_id : PK ligne `messages` (même valeur que l’API REST) pour le front (édition, delivered, etc.).
+	ID        int    `json:"id,omitempty"`
+	MessageID string `json:"message_id,omitempty"`
+	// Réponse à un message : même forme que GET /api/messages pour afficher la citation sans attendre le resync.
+	ReplyToID *int          `json:"reply_to_id,omitempty"`
+	ReplyTo   *ReplyToData  `json:"reply_to,omitempty"`
 }

@@ -49,6 +49,9 @@ spec:
                   key: POSTGRES_PASSWORD
             - name: DB_NAME
               value: storm_message_db
+            # Postgres in-cluster (Docker / k3d) sans TLS — évite pq: SSL is not enabled on the server
+            - name: DB_SSLMODE
+              value: "disable"
             - name: HTTP_PORT
               value: "8080"
           readinessProbe:
