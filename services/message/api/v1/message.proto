@@ -11,6 +11,22 @@ message SendMessageRequest {
   string content = 3;
   string attachment = 4; // optionnel
   int32 conversation_id = 5;
+  int32 reply_to_id = 6;      // optionnel, FK messages.id
+  int32 forward_from_id = 7; // optionnel, message d'origine
+}
+
+// ReplyToRef : message référencé (réponse à)
+message ReplyToRef {
+  int32 id = 1;
+  string sender_id = 2;   // UUID
+  string content = 3;
+}
+
+// SeenByEntry : un utilisateur ayant vu le message
+message SeenByEntry {
+  string user_id = 1;       // UUID
+  string display_name = 2;
+  int64 seen_at = 3;
 }
 
 // ChatMessage représente un message persisté
@@ -24,6 +40,11 @@ message ChatMessage {
   int64 updated_at = 7;
   int32 conversation_id = 8;
   int64 received_at = 9; // Timestamp de reception pour l'acteur courant (0 = non disponible)
+  int32 reply_to_id = 10;      // optionnel (0 = absent)
+  string status = 11;         // sent | delivered | seen
+  int32 forward_from_id = 12; // optionnel (0 = absent)
+  ReplyToRef reply_to = 13;    // rempli en liste si reply_to_id présent
+  repeated SeenByEntry seen_by = 14;
 }
 
 // Error dans la réponse

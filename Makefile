@@ -8,8 +8,9 @@ MESSAGE_DB_NAME=storm_message_db
 USER_DB_NAME=storm_user_db
 
 .PHONY: up down clean build deploy import restart status logs logs-media \
-	migrate-message migrate-message-legacy seed-message seed-user \
-	migrate-message-docker migrate-message-legacy-docker seed-message-docker seed-user-docker \
+	migrate-message migrate-message-legacy migrate-message-006 seed-message seed-user \
+	migrate-message-docker migrate-message-legacy-docker migrate-message-006-docker seed-message-docker seed-user-docker \
+	dev-infra-up dev-migrate-all-docker dev-setup-docker k8s-reset-postgres-message \
 	proto-message
 
 # Lance tout : cluster, build, import et déploiement
@@ -90,6 +91,16 @@ migrate-message-legacy:
 	fi; \
 	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(MESSAGE_DB_NAME) < services/message/migrations/005_conversations_refactor.sql
 
+# Migration 006: reply_to_id, status, forward_from_id, message_seen_by
+migrate-message-006:
+	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-message -o jsonpath='{.items[0].metadata.name}'); \
+	if [ -z "$$POD" ]; then \
+		echo "Pod postgres-message introuvable dans le namespace $(NAMESPACE)."; \
+		echo "Deploie d'abord K8s: kubectl apply -k infra/k8s/base/"; \
+		exit 1; \
+	fi; \
+	kubectl exec -i -n $(NAMESPACE) $$POD -- psql -U $(POSTGRES_USER) -d $(MESSAGE_DB_NAME) < services/message/migrations/006_message_reply_status_forward_seen.sql
+
 # Seed DB Message (conversations + messages)
 seed-message:
 	@POD=$$(kubectl get pod -n $(NAMESPACE) -l app=postgres-message -o jsonpath='{.items[0].metadata.name}'); \
@@ -124,11 +135,48 @@ migrate-message-docker:
 migrate-message-legacy-docker:
 	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/005_conversations_refactor.sql
 
+migrate-message-006-docker:
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/006_message_reply_status_forward_seen.sql
+
 seed-message-docker:
 	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/002_seed_data.sql
 
 seed-user-docker:
 	docker exec -i storm-postgres-user psql -U storm -d storm_user_db < infra/seed/001_seed_users.sql
+
+# --- Dev local (Docker Compose) : idéal pour tester le front sans k8s ---
+
+# Infra minimale : Postgres user + message, NATS, Redis
+dev-infra-up:
+	docker compose up -d postgres-user postgres-chat nats redis
+
+# Applique toutes les migrations + seed user (conteneurs déjà démarrés)
+dev-migrate-all-docker:
+	@echo "→ Migrations message DB (001 + 005 + 006)..."
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/001_create_tables.sql
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/005_conversations_refactor.sql
+	docker exec -i storm-postgres-chat psql -U storm -d storm_message_db < services/message/migrations/006_message_reply_status_forward_seen.sql
+	@echo "→ Schéma + seed user DB..."
+	docker exec -i storm-postgres-user psql -U storm -d storm_user_db < infra/seed/000_create_user_tables.sql
+	docker exec -i storm-postgres-user psql -U storm -d storm_user_db < infra/seed/001_seed_users.sql
+	@echo "OK — voir docs/DEV-FRONT-LOCAL.md pour lancer les services."
+
+# Infra + migrations (une commande)
+dev-setup-docker: dev-infra-up
+	@echo "Attente Postgres (message)..."
+	@until docker exec storm-postgres-chat pg_isready -U storm -d storm_message_db 2>/dev/null; do sleep 2; done
+	@echo "Attente Postgres (user)..."
+	@until docker exec storm-postgres-user pg_isready -U storm -d storm_user_db 2>/dev/null; do sleep 2; done
+	$(MAKE) dev-migrate-all-docker
+
+# k8s : repartir d’un volume message DB vierge (après corruption checkpoint, etc.)
+k8s-reset-postgres-message:
+	@echo "⚠️  Supprime deployment + PVC postgres-message — PERTE des données message DB"
+	kubectl delete deployment postgres-message -n $(NAMESPACE) --ignore-not-found
+	kubectl delete pvc postgres-message-pvc -n $(NAMESPACE) --ignore-not-found
+	kubectl apply -k infra/k8s/base/
+	@echo "→ Surveille: kubectl get pods -n $(NAMESPACE) -l app=postgres-message -w"
+	@echo "→ Puis: make migrate-message && make migrate-message-legacy && make migrate-message-006"
 
 # Régénère message.pb.go (copie dans api/v1 car protoc sort par go_package)
 proto-message:

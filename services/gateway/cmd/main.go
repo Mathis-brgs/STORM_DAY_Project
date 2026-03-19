@@ -88,6 +88,7 @@ func SetupServer(nc common.NatsConn) *chi.Mux {
 	r.Get("/api/messages", messageHandler.GetByGroupId)
 
 	r.Put("/api/messages/{id}", messageHandler.Update)
+	r.Patch("/api/messages/{id}", messageHandler.Update)
 
 	r.Delete("/api/messages/{id}", messageHandler.Delete)
 	r.Post("/api/messages/{id}/receipt", messageHandler.AckReceipt)

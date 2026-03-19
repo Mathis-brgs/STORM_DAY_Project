@@ -47,18 +47,30 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "storm", "-d", "storm_message_db"]
+            failureThreshold: 30
+            periodSeconds: 5
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "storm", "-d", "storm_message_db"]
             initialDelaySeconds: 5
             periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "storm", "-d", "storm_message_db"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             requests:
-              memory: "128Mi"
+              memory: "256Mi"
               cpu: "100m"
             limits:
-              memory: "256Mi"
-              cpu: "250m"
+              memory: "768Mi"
+              cpu: "500m"
       volumes:
         - name: data
           persistentVolumeClaim:

@@ -14,6 +14,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	subjectSetMessageStatus = "MESSAGE_SET_STATUS"
+	subjectMarkMessageSeen  = "MESSAGE_MARK_SEEN"
+)
+
 type Handler struct {
 	gws.BuiltinEventHandler
 	hub               *Hub
@@ -206,12 +211,106 @@ func (h *Handler) onMessage(socket Socket, message WSMessage) {
 		if userId != nil {
 			msg.User = userId.(string)
 		}
+		if msg.Username == "" && msg.User != "" {
+			msg.Username = h.displayNameForUser(msg.User)
+		}
 		finalPayload, _ := json.Marshal(msg)
 		_ = h.nats.Publish("message.broadcast."+msg.Room, finalPayload)
+
+	case models.WSActionDelivered:
+		userId, _ := socket.Session().Load("userId")
+		if userId == nil {
+			return
+		}
+		if strings.TrimSpace(msg.MessageID) == "" {
+			return
+		}
+		payload, _ := json.Marshal(map[string]interface{}{
+			"message_id": parseMessageID(msg.MessageID),
+			"status":     "delivered",
+		})
+		if _, err := h.nats.Request(subjectSetMessageStatus, payload, 3*time.Second); err != nil {
+			log.Printf("MESSAGE_SET_STATUS: %v", err)
+		}
+		broadcast, _ := json.Marshal(map[string]interface{}{
+			"action":     models.WSActionDelivered,
+			"room":       msg.Room,
+			"message_id": msg.MessageID,
+		})
+		_ = h.nats.Publish("message.broadcast."+msg.Room, broadcast)
+
+	case models.WSActionSeen:
+		userId, _ := socket.Session().Load("userId")
+		if userId == nil {
+			return
+		}
+		userIDStr := userId.(string)
+		if strings.TrimSpace(msg.MessageID) == "" {
+			return
+		}
+		mid := parseMessageID(msg.MessageID)
+		if mid <= 0 {
+			return
+		}
+		displayName := h.displayNameForUser(userIDStr)
+		payload, _ := json.Marshal(map[string]interface{}{
+			"message_id":   mid,
+			"actor_id":     userIDStr,
+			"display_name": displayName,
+		})
+		if _, err := h.nats.Request(subjectMarkMessageSeen, payload, 3*time.Second); err != nil {
+			log.Printf("MESSAGE_MARK_SEEN: %v", err)
+		}
+		broadcast, _ := json.Marshal(map[string]interface{}{
+			"action":            models.WSActionSeen,
+			"room":              msg.Room,
+			"message_id":        msg.MessageID,
+			"seen_user_id":      userIDStr,
+			"seen_display_name": displayName,
+		})
+		_ = h.nats.Publish("message.broadcast."+msg.Room, broadcast)
 
 	default:
 		log.Printf("Action inconnue : %s", msg.Action)
 	}
+}
+
+func (h *Handler) displayNameForUser(userID string) string {
+	request := struct {
+		Pattern string            `json:"pattern"`
+		Data    map[string]string `json:"data"`
+		ID      string            `json:"id"`
+	}{
+		Pattern: "user.get",
+		Data:    map[string]string{"id": userID},
+		ID:      time.Now().String(),
+	}
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return ""
+	}
+	msg, err := h.nats.Request("user.get", payload, 2*time.Second)
+	if err != nil {
+		return ""
+	}
+	var wrapper struct {
+		Response struct {
+			Username    string `json:"username"`
+			DisplayName string `json:"display_name"`
+		} `json:"response"`
+	}
+	if err := json.Unmarshal(msg.Data, &wrapper); err != nil {
+		return ""
+	}
+	if wrapper.Response.DisplayName != "" {
+		return wrapper.Response.DisplayName
+	}
+	return wrapper.Response.Username
+}
+
+func parseMessageID(s string) int {
+	id, _ := strconv.ParseInt(s, 10, 32)
+	return int(id)
 }
 
 func parseConversationRoomID(room string) (int, error) {

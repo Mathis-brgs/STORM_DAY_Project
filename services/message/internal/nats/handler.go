@@ -1,6 +1,7 @@
 package nats
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"strings"
@@ -40,6 +41,9 @@ const (
 	subjectGroupUpdateRole  = "GROUP_UPDATE_ROLE"
 	subjectGroupLeave       = "GROUP_LEAVE"
 	subjectGroupDelete      = "GROUP_DELETE"
+
+	subjectSetMessageStatus = "MESSAGE_SET_STATUS"
+	subjectMarkMessageSeen  = "MESSAGE_MARK_SEEN"
 )
 
 func NewMessageHandler(svc *service.MessageService, conversationSvc *service.ConversationService) *Handler {
@@ -85,6 +89,15 @@ func (h *Handler) handleSendMessage(msg *nats.Msg) {
 		ConversationID: conversationID,
 		Content:        req.GetContent(),
 		Attachment:     req.GetAttachment(),
+		Status:         "sent",
+	}
+	if req.GetReplyToId() > 0 {
+		replyID := int(req.GetReplyToId())
+		chatMsg.ReplyToID = &replyID
+	}
+	if req.GetForwardFromId() > 0 {
+		fwdID := int(req.GetForwardFromId())
+		chatMsg.ForwardFromID = &fwdID
 	}
 
 	result, err := h.svc.SendMessage(chatMsg)
@@ -309,6 +322,69 @@ func (h *Handler) handleAckMessage(msg *nats.Msg) {
 		Ok:   true,
 		Data: chatMessageToProto(&responseMessage),
 	})
+}
+
+func (h *Handler) handleSetMessageStatus(msg *nats.Msg) {
+	var req struct {
+		MessageID int    `json:"message_id"`
+		Status    string `json:"status"`
+	}
+	if err := json.Unmarshal(msg.Data, &req); err != nil {
+		respondJSON(msg, map[string]interface{}{"ok": false, "error": "invalid request"})
+		return
+	}
+	if req.MessageID <= 0 || (req.Status != "sent" && req.Status != "delivered" && req.Status != "seen") {
+		respondJSON(msg, map[string]interface{}{"ok": false, "error": "message_id and status required"})
+		return
+	}
+	if err := h.svc.SetMessageStatus(req.MessageID, req.Status); err != nil {
+		respondJSON(msg, map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	respondJSON(msg, map[string]interface{}{"ok": true})
+}
+
+func (h *Handler) handleMarkMessageSeen(msg *nats.Msg) {
+	var req struct {
+		MessageID   int    `json:"message_id"`
+		ActorID     string `json:"actor_id"`
+		DisplayName string `json:"display_name"`
+	}
+	if err := json.Unmarshal(msg.Data, &req); err != nil {
+		respondJSON(msg, map[string]interface{}{"ok": false, "error": "invalid request"})
+		return
+	}
+	if req.MessageID <= 0 || req.ActorID == "" {
+		respondJSON(msg, map[string]interface{}{"ok": false, "error": "message_id and actor_id required"})
+		return
+	}
+	actorID, err := parseUUID("actor_id", req.ActorID)
+	if err != nil {
+		respondJSON(msg, map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	existingMessage, err := h.svc.GetMessageById(req.MessageID)
+	if err != nil || existingMessage == nil {
+		respondJSON(msg, map[string]interface{}{"ok": false, "error": "message not found"})
+		return
+	}
+	if err := h.authorizeConversationMember(actorID, existingMessage.ConversationID); err != nil {
+		respondJSON(msg, map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	if _, err := h.svc.MarkMessageSeenBy(req.MessageID, actorID, req.DisplayName); err != nil {
+		respondJSON(msg, map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	if err := h.svc.SetMessageStatus(req.MessageID, "seen"); err != nil {
+		log.Printf("SetMessageStatus(seen) after MarkMessageSeenBy: %v", err)
+	}
+	respondJSON(msg, map[string]interface{}{"ok": true})
+}
+
+func respondJSON(msg *nats.Msg, v interface{}) {
+	data, _ := json.Marshal(v)
+	_ = msg.Respond(data)
 }
 
 func (h *Handler) handleGroupCreate(msg *nats.Msg) {
@@ -677,6 +753,12 @@ func (h *Handler) Listen(nc *nats.Conn) error {
 	if _, err := nc.QueueSubscribe(subjectAckMessage, "message", h.handleAckMessage); err != nil {
 		return err
 	}
+	if _, err := nc.QueueSubscribe(subjectSetMessageStatus, "message", h.handleSetMessageStatus); err != nil {
+		return err
+	}
+	if _, err := nc.QueueSubscribe(subjectMarkMessageSeen, "message", h.handleMarkMessageSeen); err != nil {
+		return err
+	}
 
 	if _, err := nc.QueueSubscribe(subjectGroupCreate, "message", h.handleGroupCreate); err != nil {
 		return err
@@ -729,7 +811,7 @@ func chatMessageToProto(m *models.ChatMessage) *apiv1.ChatMessage {
 	if m.ReceivedAt != nil {
 		receivedAt = m.ReceivedAt.Unix()
 	}
-	return &apiv1.ChatMessage{
+	out := &apiv1.ChatMessage{
 		Id:             int32(m.ID),
 		SenderId:       m.SenderID.String(),
 		GroupId:        conversationID,
@@ -739,7 +821,29 @@ func chatMessageToProto(m *models.ChatMessage) *apiv1.ChatMessage {
 		UpdatedAt:      m.UpdatedAt.Unix(),
 		ConversationId: conversationID,
 		ReceivedAt:     receivedAt,
+		Status:         m.Status,
 	}
+	if m.ReplyToID != nil {
+		out.ReplyToId = int32(*m.ReplyToID)
+	}
+	if m.ForwardFromID != nil {
+		out.ForwardFromId = int32(*m.ForwardFromID)
+	}
+	if m.ReplyTo != nil {
+		out.ReplyTo = &apiv1.ReplyToRef{
+			Id:       int32(m.ReplyTo.ID),
+			SenderId: m.ReplyTo.SenderID,
+			Content:  m.ReplyTo.Content,
+		}
+	}
+	for _, e := range m.SeenBy {
+		out.SeenBy = append(out.SeenBy, &apiv1.SeenByEntry{
+			UserId:      e.UserID,
+			DisplayName: e.DisplayName,
+			SeenAt:      e.SeenAt,
+		})
+	}
+	return out
 }
 
 func conversationToProto(c *models.Conversation) *apiv1.Group {

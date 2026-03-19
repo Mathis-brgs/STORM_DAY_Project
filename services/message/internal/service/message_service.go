@@ -105,6 +105,23 @@ func (s *MessageService) GetMessageReceiptByID(id int, userID uuid.UUID) (*model
 	return s.messageRepo.GetMessageReceiptByID(id, userID)
 }
 
+func (s *MessageService) SetMessageStatus(id int, status string) error {
+	if id == 0 {
+		return errors.New("id is empty")
+	}
+	return s.messageRepo.SetMessageStatus(id, status)
+}
+
+func (s *MessageService) MarkMessageSeenBy(id int, userID uuid.UUID, displayName string) (*models.MessageSeenBy, error) {
+	if id == 0 {
+		return nil, errors.New("id is empty")
+	}
+	if userID == uuid.Nil {
+		return nil, errors.New("user ID is empty")
+	}
+	return s.messageRepo.MarkMessageSeenBy(id, userID, displayName)
+}
+
 func (s *MessageService) DeleteMessageById(id int) error {
 	if id == 0 {
 		return errors.New("id is empty")
