@@ -15,4 +15,8 @@ type MessageRepo interface {
 	GetMessageReceiptByID(id int, userID uuid.UUID) (*models.MessageReceipt, error)
 	UpdateMessageById(id int, content string) (*models.ChatMessage, error)
 	DeleteMessageById(id int) error
+
+	SetMessageStatus(id int, status string) error
+	MarkMessageSeenBy(id int, userID uuid.UUID, displayName string) (*models.MessageSeenBy, error)
+	GetSeenByForMessage(id int) ([]*models.MessageSeenBy, error)
 }

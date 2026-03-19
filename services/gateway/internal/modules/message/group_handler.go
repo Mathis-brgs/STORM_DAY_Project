@@ -354,6 +354,11 @@ func (h *Handler) ListGroupMembers(w http.ResponseWriter, r *http.Request) {
 	out := models.GroupMembersResponse{OK: resp.GetOk()}
 	for _, item := range resp.GetData() {
 		if mapped := toGroupMemberModel(item); mapped != nil {
+			if info := h.fetchUserInfo(mapped.UserID); info != nil {
+				mapped.Username = info.Username
+				mapped.DisplayName = info.DisplayName
+				mapped.AvatarURL = info.AvatarURL
+			}
 			out.Data = append(out.Data, *mapped)
 		}
 	}
@@ -801,4 +806,49 @@ func (h *Handler) fetchUsername(userID string) string {
 		return wrapper.Response.DisplayName
 	}
 	return wrapper.Response.Username
+}
+
+type userInfo struct {
+	Username    string
+	DisplayName string
+	AvatarURL   string
+}
+
+// fetchUserInfo récupère username, display_name, avatar_url via user.get.
+func (h *Handler) fetchUserInfo(userID string) *userInfo {
+	request := struct {
+		Pattern string            `json:"pattern"`
+		Data    map[string]string `json:"data"`
+		ID      string            `json:"id"`
+	}{
+		Pattern: "user.get",
+		Data:    map[string]string{"id": userID},
+		ID:      time.Now().String(),
+	}
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil
+	}
+
+	msg, err := h.nc.Request("user.get", payload, 2*time.Second)
+	if err != nil {
+		return nil
+	}
+
+	var wrapper struct {
+		Response struct {
+			Username    string `json:"username"`
+			DisplayName string `json:"display_name"`
+			AvatarURL   string `json:"avatar_url"`
+		} `json:"response"`
+	}
+	if err := json.Unmarshal(msg.Data, &wrapper); err != nil {
+		return nil
+	}
+
+	return &userInfo{
+		Username:    wrapper.Response.Username,
+		DisplayName: wrapper.Response.DisplayName,
+		AvatarURL:   wrapper.Response.AvatarURL,
+	}
 }

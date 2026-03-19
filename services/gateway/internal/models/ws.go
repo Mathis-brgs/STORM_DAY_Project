@@ -2,9 +2,11 @@ package models
 
 // Constantes pour les actions WebSocket
 const (
-	WSActionJoin    = "join"
-	WSActionMessage = "message"
-	WSActionTyping  = "typing"
+	WSActionJoin      = "join"
+	WSActionMessage   = "message"
+	WSActionTyping    = "typing"
+	WSActionDelivered = "delivered"
+	WSActionSeen      = "seen"
 )
 
 // InputMessage est le payload JSON envoyé par le client sur le WebSocket
@@ -18,6 +20,6 @@ type InputMessage struct {
 	AttachmentBase64      string `json:"attachmentBase64,omitempty"`
 	AttachmentFilename    string `json:"attachmentFilename,omitempty"`
 	AttachmentContentType string `json:"attachmentContentType,omitempty"`
-	// Attachment holds the mediaId (returned by media-service) when available
 	Attachment            string `json:"attachment,omitempty"`
+	MessageID             string `json:"message_id,omitempty"`
 }
