@@ -22,9 +22,10 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   # Node pool par défaut
   default_node_pool {
-    name                = "default"
-    vm_size             = var.vm_size
-    vnet_subnet_id      = var.aks_subnet_id
+    name                        = "default"
+    temporary_name_for_rotation = "tmpdefault"
+    vm_size                     = var.vm_size
+    vnet_subnet_id              = var.aks_subnet_id
 
     # Autoscaler activé
     enable_auto_scaling = true

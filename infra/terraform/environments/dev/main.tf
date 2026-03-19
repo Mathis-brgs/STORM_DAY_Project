@@ -186,6 +186,8 @@ module "aks" {
   kubernetes_version = var.kubernetes_version
   node_count         = var.aks_node_count
   vm_size            = var.aks_vm_size
+  min_node_count     = 2
+  max_node_count     = 4
 }
 
 # ------------------------------------------------------------------------------
