@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-storm
+  namespace: storm
+  labels:
+    grafana_datasource: "1"
+data:
+  storm-prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Storm Prometheus
+        type: prometheus
+        url: http://prometheus-operated:9090
+        access: proxy
+        isDefault: true
+        editable: true

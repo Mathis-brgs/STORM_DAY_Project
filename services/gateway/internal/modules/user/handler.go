@@ -69,7 +69,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	if len(token) > 7 && token[:7] == "Bearer " {
 		token = token[7:]
 	}
-	valResult, err := auth.ValidateToken(h.nc, token)
+	valResult, err := auth.ValidateToken(token)
 	if err != nil {
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
 		return
@@ -123,7 +123,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Validate Token to get User ID
-	valResult, err := auth.ValidateToken(h.nc, token)
+	valResult, err := auth.ValidateToken(token)
 	if err != nil {
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
 		return

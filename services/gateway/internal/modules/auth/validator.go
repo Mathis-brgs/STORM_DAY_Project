@@ -1,10 +1,10 @@
 package auth
 
 import (
-	"encoding/json"
 	"fmt"
-	"gateway/internal/common"
-	"time"
+	"os"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type UserInfo struct {
@@ -17,40 +17,38 @@ type ValidationResult struct {
 	User    UserInfo `json:"user"`
 }
 
-// ValidateToken sends a request to the Auth service via NATS to validate a JWT token.
-func ValidateToken(nc common.NatsConn, token string) (*ValidationResult, error) {
+type claims struct {
+	Username string `json:"username"`
+	jwt.RegisteredClaims
+}
+
+// ValidateToken validates a JWT token locally without calling the auth service via NATS.
+func ValidateToken(token string) (*ValidationResult, error) {
 	if token == "" {
 		return &ValidationResult{IsValid: false}, nil
 	}
 
-	// Wrap for NestJS Microservice
-	reqID := time.Now().String()
-	request := struct {
-		Pattern string            `json:"pattern"`
-		Data    map[string]string `json:"data"`
-		ID      string            `json:"id"`
-	}{
-		Pattern: "auth.validate",
-		Data:    map[string]string{"token": token},
-		ID:      reqID,
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "storm-secret-key"
 	}
 
-	payload, err := json.Marshal(request)
+	parsed := &claims{}
+	_, err := jwt.ParseWithClaims(token, parsed, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
 	if err != nil {
-		return nil, err
+		return &ValidationResult{IsValid: false}, nil
 	}
 
-	msg, err := nc.Request("auth.validate", payload, 2*time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("nats request failed: %w", err)
-	}
-
-	var wrapper struct {
-		Response ValidationResult `json:"response"`
-	}
-	if err := json.Unmarshal(msg.Data, &wrapper); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal validation result: %w", err)
-	}
-
-	return &wrapper.Response, nil
+	return &ValidationResult{
+		IsValid: true,
+		User: UserInfo{
+			ID:       parsed.Subject,
+			Username: parsed.Username,
+		},
+	}, nil
 }

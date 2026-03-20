@@ -47,7 +47,7 @@
           "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "red" }, { "value": 1, "color": "green" }] }
         }
       },
-      "targets": [{ "expr": "up{job=\"gateway\"}", "refId": "A", "legendFormat": "" }]
+      "targets": [{ "expr": "up{job=\"gateway-service\"}", "refId": "A", "legendFormat": "" }]
     },
     {
       "id": 3,
@@ -65,7 +65,7 @@
           "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "blue" }, { "value": 500, "color": "yellow" }, { "value": 1000, "color": "orange" }] }
         }
       },
-      "targets": [{ "expr": "go_goroutines{job=\"gateway\"}", "refId": "A" }]
+      "targets": [{ "expr": "go_goroutines{job=\"gateway-service\"}", "refId": "A" }]
     },
     {
       "id": 4,
@@ -80,7 +80,7 @@
           "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "green" }, { "value": 209715200, "color": "yellow" }, { "value": 419430400, "color": "red" }] }
         }
       },
-      "targets": [{ "expr": "process_resident_memory_bytes{job=\"gateway\"}", "refId": "A" }]
+      "targets": [{ "expr": "process_resident_memory_bytes{job=\"gateway-service\"}", "refId": "A" }]
     },
     {
       "id": 5,
@@ -95,7 +95,7 @@
           "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "green" }, { "value": 50, "color": "yellow" }, { "value": 80, "color": "red" }] }
         }
       },
-      "targets": [{ "expr": "rate(process_cpu_seconds_total{job=\"gateway\"}[1m]) * 100", "refId": "A" }]
+      "targets": [{ "expr": "rate(process_cpu_seconds_total{job=\"gateway-service\"}[1m]) * 100", "refId": "A" }]
     },
     {
       "id": 6,
@@ -121,7 +121,7 @@
         }
       },
       "targets": [
-        { "expr": "go_goroutines{job=\"gateway\"}", "legendFormat": "goroutines", "refId": "A" }
+        { "expr": "go_goroutines{job=\"gateway-service\"}", "legendFormat": "goroutines", "refId": "A" }
       ]
     },
     {
@@ -144,8 +144,8 @@
         ]
       },
       "targets": [
-        { "expr": "rate(process_cpu_seconds_total{job=\"gateway\"}[1m]) * 100", "legendFormat": "CPU %", "refId": "A" },
-        { "expr": "process_resident_memory_bytes{job=\"gateway\"}", "legendFormat": "Mémoire RSS", "refId": "B" }
+        { "expr": "rate(process_cpu_seconds_total{job=\"gateway-service\"}[1m]) * 100", "legendFormat": "CPU %", "refId": "A" },
+        { "expr": "process_resident_memory_bytes{job=\"gateway-service\"}", "legendFormat": "Mémoire RSS", "refId": "B" }
       ]
     },
     {

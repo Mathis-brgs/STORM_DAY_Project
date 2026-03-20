@@ -549,7 +549,7 @@ func (h *Handler) actorFromToken(r *http.Request) *auth.UserInfo {
 	if token == "" {
 		return nil
 	}
-	result, err := auth.ValidateToken(h.nc, token)
+	result, err := auth.ValidateToken(token)
 	if err != nil || !result.IsValid {
 		return nil
 	}

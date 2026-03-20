@@ -33,11 +33,18 @@ const wsConnectTime  = new Trend('ws_connect_time', true);
 const wsConnErrors   = new Rate('ws_connection_errors');
 const wsActiveSess   = new Gauge('ws_active_sessions');
 
+const TARGET_VUS = parseInt(__ENV.K6_VUS || '30000', 10);
+
 export const options = {
+  stages: [
+    { duration: '5m', target: TARGET_VUS },  // ramp up progressif
+    { duration: '5m', target: TARGET_VUS },  // maintien
+    { duration: '30s', target: 0 },          // descente
+  ],
   thresholds: {
     'ws_connect_time':      ['p(95)<200'],
     'ws_connection_errors': ['rate<0.01'],
-    'ws_connecting':        ['p(95)<200'],  // métrique built-in k6
+    'ws_connecting':        ['p(95)<200'],
   },
 };
 
@@ -68,12 +75,17 @@ export function setup() {
   };
 }
 
+const RAMP_SECONDS = parseInt(__ENV.K6_RAMP_SECONDS || '180', 10);
+
 export default function (data) {
   if (!data.token) {
     console.error(`[VU ${__VU}] Pas de token — setup a échoué`);
     wsConnErrors.add(1);
     return;
   }
+
+  // Étale les connexions sur RAMP_SECONDS pour un ramp progressif
+  sleep(Math.random() * RAMP_SECONDS);
 
   const url = `${WS_URL}/ws?token=${data.token}`;
 
@@ -112,10 +124,10 @@ export default function (data) {
       wsActiveSess.add(-1);
     });
 
-    // Garder la connexion ouverte — se ferme quand k6 atteint --duration
+    // Garder la connexion ouverte pendant toute la durée du test (11min)
     socket.setTimeout(() => {
       socket.close();
-    }, 25000); // ferme proprement 5s avant la fin des 30s de test
+    }, 660000); // 11 min > durée totale (5m ramp + 5m hold + 30s descend)
   });
 
   check(res, {
