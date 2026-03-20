@@ -94,6 +94,12 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 		Attachment:     req.Attachment,
 		ConversationId: int32(conversationID),
 	}
+	if req.ReplyToID != nil && *req.ReplyToID > 0 {
+		protoReq.ReplyToId = int32(*req.ReplyToID)
+	}
+	if req.ForwardFromID != nil && *req.ForwardFromID > 0 {
+		protoReq.ForwardFromId = int32(*req.ForwardFromID)
+	}
 	data, err := proto.Marshal(protoReq)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, models.SendMessageResponse{
@@ -137,15 +143,29 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 		status = statusFromServiceCode(resp.GetError().GetCode(), http.StatusUnprocessableEntity)
 	}
 
-	// Broadcast temps réel via NATS pour notifier les clients WebSocket
-	if resp.GetOk() {
+	// Broadcast temps réel via NATS pour notifier les clients WebSocket (inclut reply_to pour affichage citation sans resync).
+	if resp.GetOk() && resp.GetData() != nil {
 		room := "conversation:" + strconv.Itoa(conversationID)
+		d := resp.GetData()
+		mid := int(d.GetId())
 		broadcast := models.InputMessage{
-			Action:   models.WSActionMessage,
-			Room:     room,
-			User:     actor.ID,
-			Username: actor.Username,
-			Content:  req.Content,
+			Action:    models.WSActionMessage,
+			Room:      room,
+			User:      actor.ID,
+			Username:  actor.Username,
+			Content:   req.Content,
+			ID:        mid,
+			MessageID: strconv.Itoa(mid),
+		}
+		if rto := d.GetReplyTo(); rto != nil && rto.GetId() != 0 {
+			rid := int(rto.GetId())
+			broadcast.ReplyToID = &rid
+			broadcast.ReplyTo = &models.ReplyToData{
+				ID:         rid,
+				SenderID:   rto.GetSenderId(),
+				SenderName: h.fetchUsername(rto.GetSenderId()),
+				Content:    rto.GetContent(),
+			}
 		}
 		if payload, err := json.Marshal(broadcast); err == nil {
 			_ = h.nc.Publish("message.broadcast."+room, payload)
@@ -193,21 +213,25 @@ func (h *Handler) GetById(w http.ResponseWriter, r *http.Request) {
 
 	out := models.GetMessageResponse{OK: resp.GetOk()}
 	if resp.GetData() != nil {
-		d := resp.GetData()
-		conversationID := int(d.GetConversationId())
-		if conversationID == 0 {
-			conversationID = int(d.GetGroupId())
-		}
-		out.Data = &models.GetMessageData{
-			ID:             int(d.GetId()),
-			SenderID:       d.GetSenderId(),
-			ConversationID: conversationID,
-			GroupID:        conversationID,
-			Content:        d.GetContent(),
-			Attachment:     d.GetAttachment(),
-			ReceivedAt:     d.GetReceivedAt(),
-			CreatedAt:      d.GetCreatedAt(),
-			UpdatedAt:      d.GetUpdatedAt(),
+		mapped := toSendMessageData(resp.GetData())
+		if mapped != nil {
+			out.Data = &models.GetMessageData{
+				ID:             mapped.ID,
+				SenderID:       mapped.SenderID,
+				SenderName:     mapped.SenderName,
+				SenderUsername: mapped.SenderUsername,
+				ConversationID: mapped.ConversationID,
+				GroupID:        mapped.GroupID,
+				Content:        mapped.Content,
+				Attachment:     mapped.Attachment,
+				ReceivedAt:     mapped.ReceivedAt,
+				CreatedAt:      mapped.CreatedAt,
+				UpdatedAt:      mapped.UpdatedAt,
+				Status:         mapped.Status,
+				ReplyTo:        mapped.ReplyTo,
+				SeenBy:         mapped.SeenBy,
+			}
+			h.enrichSingleMessageData(out.Data)
 		}
 	}
 	if resp.GetError() != nil {
@@ -276,12 +300,17 @@ func (h *Handler) GetByGroupId(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := models.ListMessagesResponse{OK: resp.GetOk(), NextCursor: resp.GetNextCursor()}
+	out := models.ListMessagesResponse{
+		OK:         resp.GetOk(),
+		NextCursor: resp.GetNextCursor(),
+		Data:       []models.SendMessageData{},
+	}
 	for _, d := range resp.GetData() {
 		if mapped := toSendMessageData(d); mapped != nil {
 			out.Data = append(out.Data, *mapped)
 		}
 	}
+	h.enrichMessageListSenderNames(&out.Data)
 	if resp.GetError() != nil {
 		out.Error = &models.SendMessageError{
 			Code:    resp.GetError().GetCode(),
@@ -375,6 +404,25 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if !resp.GetOk() && resp.GetError() != nil {
 		status = statusFromServiceCode(resp.GetError().GetCode(), http.StatusUnprocessableEntity)
 	}
+
+	// Contrat front : après PATCH réussi, broadcaster message_updated (aliases: message_edited, message_edit, updated).
+	if resp.GetOk() && resp.GetData() != nil {
+		convID := resp.GetData().GetConversationId()
+		if convID == 0 {
+			convID = resp.GetData().GetGroupId()
+		}
+		if convID > 0 {
+			room := "conversation:" + strconv.Itoa(int(convID))
+			payload, _ := json.Marshal(map[string]interface{}{
+				"action":     "message_updated",
+				"room":       room,
+				"message_id": strconv.Itoa(int(resp.GetData().GetId())),
+				"content":    resp.GetData().GetContent(),
+			})
+			_ = h.nc.Publish("message.broadcast."+room, payload)
+		}
+	}
+
 	respondJSON(w, status, out)
 }
 
@@ -588,7 +636,7 @@ func toSendMessageData(d *apiv1.ChatMessage) *models.SendMessageData {
 	if conversationID == 0 {
 		conversationID = int(d.GetGroupId())
 	}
-	return &models.SendMessageData{
+	out := &models.SendMessageData{
 		ID:             int(d.GetId()),
 		SenderID:       d.GetSenderId(),
 		ConversationID: conversationID,
@@ -598,5 +646,45 @@ func toSendMessageData(d *apiv1.ChatMessage) *models.SendMessageData {
 		ReceivedAt:     d.GetReceivedAt(),
 		CreatedAt:      d.GetCreatedAt(),
 		UpdatedAt:      d.GetUpdatedAt(),
+		Status:         d.GetStatus(),
+	}
+	if d.GetReplyTo() != nil {
+		out.ReplyTo = &models.ReplyToData{
+			ID:       int(d.GetReplyTo().GetId()),
+			SenderID: d.GetReplyTo().GetSenderId(),
+			Content:  d.GetReplyTo().GetContent(),
+		}
+	}
+	for _, e := range d.GetSeenBy() {
+		out.SeenBy = append(out.SeenBy, models.SeenByEntry{
+			UserID:      e.GetUserId(),
+			DisplayName: e.GetDisplayName(),
+		})
+	}
+	return out
+}
+
+func (h *Handler) enrichMessageListSenderNames(data *[]models.SendMessageData) {
+	if data == nil {
+		return
+	}
+	for i := range *data {
+		m := &(*data)[i]
+		m.SenderName = h.fetchUsername(m.SenderID)
+		m.SenderUsername = m.SenderName
+		if m.ReplyTo != nil && m.ReplyTo.SenderID != "" {
+			m.ReplyTo.SenderName = h.fetchUsername(m.ReplyTo.SenderID)
+		}
+	}
+}
+
+func (h *Handler) enrichSingleMessageData(d *models.GetMessageData) {
+	if d == nil {
+		return
+	}
+	d.SenderName = h.fetchUsername(d.SenderID)
+	d.SenderUsername = d.SenderName
+	if d.ReplyTo != nil && d.ReplyTo.SenderID != "" {
+		d.ReplyTo.SenderName = h.fetchUsername(d.ReplyTo.SenderID)
 	}
 }

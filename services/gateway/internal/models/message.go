@@ -4,9 +4,11 @@ package models
 type SendMessageRequest struct {
 	ConversationID int    `json:"conversation_id,omitempty"`
 	GroupID        int    `json:"group_id,omitempty"` // legacy alias
-	SenderID       string `json:"sender_id"`          // UUID
+	SenderID       string `json:"sender_id"`            // UUID
 	Content        string `json:"content"`
 	Attachment     string `json:"attachment,omitempty"`
+	ReplyToID      *int   `json:"reply_to_id,omitempty"`
+	ForwardFromID  *int   `json:"forward_from_id,omitempty"`
 }
 
 // SendMessageResponse est la réponse renvoyée par l'API messages
@@ -16,17 +18,36 @@ type SendMessageResponse struct {
 	Error *SendMessageError `json:"error,omitempty"`
 }
 
+// ReplyToData : message référencé (réponse à) pour GET /api/messages.
+type ReplyToData struct {
+	ID         int    `json:"id"`
+	SenderID   string `json:"sender_id,omitempty"`
+	SenderName string `json:"sender_name"`
+	Content    string `json:"content"`
+}
+
+// SeenByEntry : utilisateur ayant vu le message.
+type SeenByEntry struct {
+	UserID      string `json:"user_id"`
+	DisplayName string `json:"display_name"`
+}
+
 // SendMessageData returns conversation_id and keeps group_id for temporary compatibility.
 type SendMessageData struct {
-	ID             int    `json:"id"`
-	SenderID       string `json:"sender_id"` // UUID
-	ConversationID int    `json:"conversation_id"`
-	GroupID        int    `json:"group_id,omitempty"` // legacy alias
-	Content        string `json:"content"`
-	Attachment     string `json:"attachment,omitempty"`
-	ReceivedAt     int64  `json:"received_at,omitempty"` // actor-scoped receipt when available
-	CreatedAt      int64  `json:"created_at"`
-	UpdatedAt      int64  `json:"updated_at"`
+	ID             int           `json:"id"`
+	SenderID       string        `json:"sender_id"` // UUID
+	SenderName     string        `json:"sender_name,omitempty"`
+	SenderUsername string        `json:"sender_username,omitempty"`
+	ConversationID int           `json:"conversation_id"`
+	GroupID        int           `json:"group_id,omitempty"` // legacy alias
+	Content        string        `json:"content"`
+	Attachment     string        `json:"attachment,omitempty"`
+	ReceivedAt     int64         `json:"received_at,omitempty"` // actor-scoped receipt when available
+	CreatedAt      int64         `json:"created_at"`
+	UpdatedAt      int64         `json:"updated_at"`
+	Status         string        `json:"status,omitempty"`
+	ReplyTo        *ReplyToData  `json:"reply_to,omitempty"`
+	SeenBy         []SeenByEntry `json:"seen_by,omitempty"`
 }
 
 // SendMessageError représente une erreur dans la réponse message
@@ -55,21 +76,27 @@ type GetMessageResponse struct {
 
 // GetMessageData : id (int), sender_id (UUID), conversation_id (int).
 type GetMessageData struct {
-	ID             int    `json:"id"`
-	SenderID       string `json:"sender_id"`
-	ConversationID int    `json:"conversation_id"`
-	GroupID        int    `json:"group_id,omitempty"` // legacy alias
-	Content        string `json:"content"`
-	Attachment     string `json:"attachment,omitempty"`
-	ReceivedAt     int64  `json:"received_at,omitempty"` // actor-scoped receipt when available
-	CreatedAt      int64  `json:"created_at"`
-	UpdatedAt      int64  `json:"updated_at"`
+	ID             int           `json:"id"`
+	SenderID       string        `json:"sender_id"`
+	SenderName     string        `json:"sender_name,omitempty"`
+	SenderUsername string        `json:"sender_username,omitempty"`
+	ConversationID int           `json:"conversation_id"`
+	GroupID        int           `json:"group_id,omitempty"` // legacy alias
+	Content        string        `json:"content"`
+	Attachment     string        `json:"attachment,omitempty"`
+	ReceivedAt     int64         `json:"received_at,omitempty"` // actor-scoped receipt when available
+	CreatedAt      int64         `json:"created_at"`
+	UpdatedAt      int64         `json:"updated_at"`
+	Status         string        `json:"status,omitempty"`
+	ReplyTo        *ReplyToData  `json:"reply_to,omitempty"`
+	SeenBy         []SeenByEntry `json:"seen_by,omitempty"`
 }
 
 // ListMessagesResponse est la réponse de GET /api/messages
+// data sans omitempty : une liste vide doit sérialiser en "data":[] (le front attend un tableau).
 type ListMessagesResponse struct {
 	OK         bool              `json:"ok"`
-	Data       []SendMessageData `json:"data,omitempty"`
+	Data       []SendMessageData `json:"data"`
 	NextCursor string            `json:"next_cursor,omitempty"`
 	Error      *SendMessageError `json:"error,omitempty"`
 }
@@ -126,6 +153,9 @@ type GroupMember struct {
 	ConversationID int    `json:"conversation_id"`
 	GroupID        int    `json:"group_id,omitempty"` // legacy alias
 	UserID         string `json:"user_id"`
+	Username       string `json:"username,omitempty"`
+	DisplayName    string `json:"display_name,omitempty"`
+	AvatarURL      string `json:"avatar_url,omitempty"`
 	Role           int    `json:"role"`
 	CreatedAt      int64  `json:"created_at"`
 }
@@ -144,7 +174,7 @@ type GroupResponse struct {
 
 type GroupsResponse struct {
 	OK    bool              `json:"ok"`
-	Data  []Group           `json:"data,omitempty"`
+	Data  []Group           `json:"data"`
 	Error *SendMessageError `json:"error,omitempty"`
 }
 
@@ -167,6 +197,6 @@ type GroupMemberResponse struct {
 
 type GroupMembersResponse struct {
 	OK    bool              `json:"ok"`
-	Data  []GroupMember     `json:"data,omitempty"`
+	Data  []GroupMember     `json:"data"`
 	Error *SendMessageError `json:"error,omitempty"`
 }

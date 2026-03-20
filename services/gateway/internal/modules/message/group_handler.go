@@ -81,6 +81,20 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	if !resp.GetOk() && resp.GetError() != nil {
 		status = statusFromServiceCode(resp.GetError().GetCode(), http.StatusUnprocessableEntity)
 	}
+
+	// Contrat front : nouveau groupe créé → notifier le créateur (multi‑onglets) via user room.
+	if resp.GetOk() && out.Data != nil && actorID != "" {
+		userRoom := "user:" + actorID
+		payload, _ := json.Marshal(map[string]interface{}{
+			"action":          "conversation_created",
+			"group_id":        out.Data.ID,
+			"conversation_id": out.Data.ID,
+			"id":              out.Data.ID,
+			"name":            out.Data.Name,
+		})
+		_ = h.nc.Publish("message.broadcast."+userRoom, payload)
+	}
+
 	respondJSON(w, status, out)
 }
 
@@ -192,7 +206,7 @@ func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := models.GroupsResponse{OK: resp.GetOk()}
+	out := models.GroupsResponse{OK: resp.GetOk(), Data: []models.Group{}}
 	for _, item := range resp.GetData() {
 		if mapped := toGroupModel(item); mapped != nil {
 			h.resolveGroupDisplayName(mapped, actorID)
@@ -297,6 +311,19 @@ func (h *Handler) AddGroupMember(w http.ResponseWriter, r *http.Request) {
 	if !resp.GetOk() && resp.GetError() != nil {
 		status = statusFromServiceCode(resp.GetError().GetCode(), http.StatusUnprocessableEntity)
 	}
+
+	// Contrat front : notifier l’utilisateur ajouté (conversation_created / group_created) pour mise à jour sidebar sans refetch.
+	if resp.GetOk() && req.UserID != "" {
+		userRoom := "user:" + req.UserID
+		payload, _ := json.Marshal(map[string]interface{}{
+			"action":          "conversation_created",
+			"group_id":        conversationID,
+			"conversation_id": conversationID,
+			"id":              conversationID,
+		})
+		_ = h.nc.Publish("message.broadcast."+userRoom, payload)
+	}
+
 	respondJSON(w, status, out)
 }
 
@@ -351,9 +378,14 @@ func (h *Handler) ListGroupMembers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := models.GroupMembersResponse{OK: resp.GetOk()}
+	out := models.GroupMembersResponse{OK: resp.GetOk(), Data: []models.GroupMember{}}
 	for _, item := range resp.GetData() {
 		if mapped := toGroupMemberModel(item); mapped != nil {
+			if info := h.fetchUserInfo(mapped.UserID); info != nil {
+				mapped.Username = info.Username
+				mapped.DisplayName = info.DisplayName
+				mapped.AvatarURL = info.AvatarURL
+			}
 			out.Data = append(out.Data, *mapped)
 		}
 	}
@@ -704,12 +736,20 @@ func groupIDFromPath(r *http.Request) (int, bool) {
 	return int(id), true
 }
 
-// resolveGroupDisplayName résout le nom d'affichage d'une conversation si le nom en DB est vide.
+// legacyPlaceholderConversationName : anciennes conv. créées avec nom par défaut côté API.
+const legacyPlaceholderConversationName = "Untitled conversation"
+
+func shouldResolveConversationDisplayName(name string) bool {
+	return name == "" || name == legacyPlaceholderConversationName
+}
+
+// resolveGroupDisplayName résout le nom d'affichage d'une conversation si le nom en DB est vide
+// (ou encore l’ancien placeholder "Untitled conversation").
 // - Conv à 2 membres : nom de l'autre membre
 // - Conv à 3+ membres : "user1, user2, user3"
 // Si le nom est déjà renseigné (renommé par l'utilisateur), on le garde tel quel.
 func (h *Handler) resolveGroupDisplayName(group *models.Group, actorID string) {
-	if group == nil || group.Name != "" {
+	if group == nil || !shouldResolveConversationDisplayName(group.Name) {
 		return
 	}
 
@@ -801,4 +841,49 @@ func (h *Handler) fetchUsername(userID string) string {
 		return wrapper.Response.DisplayName
 	}
 	return wrapper.Response.Username
+}
+
+type userInfo struct {
+	Username    string
+	DisplayName string
+	AvatarURL   string
+}
+
+// fetchUserInfo récupère username, display_name, avatar_url via user.get.
+func (h *Handler) fetchUserInfo(userID string) *userInfo {
+	request := struct {
+		Pattern string            `json:"pattern"`
+		Data    map[string]string `json:"data"`
+		ID      string            `json:"id"`
+	}{
+		Pattern: "user.get",
+		Data:    map[string]string{"id": userID},
+		ID:      time.Now().String(),
+	}
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil
+	}
+
+	msg, err := h.nc.Request("user.get", payload, 2*time.Second)
+	if err != nil {
+		return nil
+	}
+
+	var wrapper struct {
+		Response struct {
+			Username    string `json:"username"`
+			DisplayName string `json:"display_name"`
+			AvatarURL   string `json:"avatar_url"`
+		} `json:"response"`
+	}
+	if err := json.Unmarshal(msg.Data, &wrapper); err != nil {
+		return nil
+	}
+
+	return &userInfo{
+		Username:    wrapper.Response.Username,
+		DisplayName: wrapper.Response.DisplayName,
+		AvatarURL:   wrapper.Response.AvatarURL,
+	}
 }
