@@ -9,8 +9,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/nats-io/nats.go"
 )
+
+// makeTestToken génère un JWT valide signé avec la clé de test.
+func makeTestToken(userID, username string, expired bool) string {
+	exp := time.Now().Add(15 * time.Minute)
+	if expired {
+		exp = time.Now().Add(-1 * time.Minute)
+	}
+	c := &claims{
+		Username: username,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   userID,
+			ExpiresAt: jwt.NewNumericDate(exp),
+		},
+	}
+	t, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, c).SignedString([]byte("storm-secret-key"))
+	return t
+}
 
 func TestHandler_Register(t *testing.T) {
 	mockNc := &common.MockNatsConn{
@@ -18,7 +36,6 @@ func TestHandler_Register(t *testing.T) {
 			if subject != "auth.register" {
 				t.Errorf("Expected subject auth.register, got %s", subject)
 			}
-			// Simulate NestJS response
 			resp := map[string]interface{}{
 				"response": map[string]string{"id": "user-123", "username": "testuser"},
 			}
@@ -35,8 +52,8 @@ func TestHandler_Register(t *testing.T) {
 
 	handler.Register(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status OK, got %d", w.Code)
+	if w.Code != http.StatusCreated {
+		t.Errorf("Expected status Created, got %d", w.Code)
 	}
 
 	var resp map[string]interface{}
@@ -76,30 +93,17 @@ func TestHandler_Login(t *testing.T) {
 func TestHandler_Logout(t *testing.T) {
 	mockNc := &common.MockNatsConn{
 		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
-			if subject == "auth.validate" {
-				resp := map[string]interface{}{
-					"response": map[string]interface{}{
-						"valid": true,
-						"user":  map[string]string{"id": "user-123"},
-					},
-				}
-				respBytes, _ := json.Marshal(resp)
-				return &nats.Msg{Data: respBytes}, nil
+			resp := map[string]interface{}{
+				"response": map[string]bool{"success": true},
 			}
-			if subject == "auth.logout" {
-				resp := map[string]interface{}{
-					"response": map[string]bool{"success": true},
-				}
-				respBytes, _ := json.Marshal(resp)
-				return &nats.Msg{Data: respBytes}, nil
-			}
-			return &nats.Msg{}, nil
+			respBytes, _ := json.Marshal(resp)
+			return &nats.Msg{Data: respBytes}, nil
 		},
 	}
 
 	handler := NewHandler(mockNc)
 	req := httptest.NewRequest("POST", "/auth/logout", nil)
-	req.Header.Set("Authorization", "Bearer valid-token")
+	req.Header.Set("Authorization", "Bearer "+makeTestToken("user-123", "testuser", false))
 	w := httptest.NewRecorder()
 
 	handler.Logout(w, req)
@@ -112,22 +116,12 @@ func TestHandler_Logout(t *testing.T) {
 func TestHandler_Logout_Bearer(t *testing.T) {
 	mockNc := &common.MockNatsConn{
 		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
-			if subject == "auth.validate" {
-				resp := map[string]interface{}{
-					"response": map[string]interface{}{
-						"valid": true,
-						"user":  map[string]string{"id": "user-123"},
-					},
-				}
-				respBytes, _ := json.Marshal(resp)
-				return &nats.Msg{Data: respBytes}, nil
-			}
-			return &nats.Msg{Data: []byte(`{"success":true}`)}, nil
+			return &nats.Msg{Data: []byte(`{"response":{"success":true}}`)}, nil
 		},
 	}
 	handler := NewHandler(mockNc)
 	req := httptest.NewRequest("POST", "/auth/logout", nil)
-	req.Header.Set("Authorization", "Bearer token123")
+	req.Header.Set("Authorization", "Bearer "+makeTestToken("user-123", "testuser", false))
 	w := httptest.NewRecorder()
 	handler.Logout(w, req)
 	if w.Code != http.StatusOK {
@@ -172,36 +166,13 @@ func TestHandler_Register_UnwrappedResponse(t *testing.T) {
 	req := httptest.NewRequest("POST", "/auth/register", bytes.NewBuffer(bodyBytes))
 	w := httptest.NewRecorder()
 	handler.Register(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status OK, got %d", w.Code)
-	}
-}
-
-func TestHandler_Logout_ValidationError(t *testing.T) {
-	mockNc := &common.MockNatsConn{
-		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
-			return nil, nats.ErrNoResponders
-		},
-	}
-	handler := NewHandler(mockNc)
-	req := httptest.NewRequest("POST", "/auth/logout", nil)
-	req.Header.Set("Authorization", "Bearer valid-token")
-	w := httptest.NewRecorder()
-	handler.Logout(w, req)
-	if w.Code != http.StatusServiceUnavailable {
-		t.Errorf("Expected status ServiceUnavailable, got %d", w.Code)
+	if w.Code != http.StatusCreated {
+		t.Errorf("Expected status Created, got %d", w.Code)
 	}
 }
 
 func TestHandler_Logout_ValidationInvalid(t *testing.T) {
-	mockNc := &common.MockNatsConn{
-		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
-			resp := map[string]interface{}{"response": map[string]interface{}{"valid": false}}
-			respBytes, _ := json.Marshal(resp)
-			return &nats.Msg{Data: respBytes}, nil
-		},
-	}
-	handler := NewHandler(mockNc)
+	handler := NewHandler(&common.MockNatsConn{})
 	req := httptest.NewRequest("POST", "/auth/logout", nil)
 	req.Header.Set("Authorization", "Bearer invalid-token")
 	w := httptest.NewRecorder()
@@ -214,22 +185,12 @@ func TestHandler_Logout_ValidationInvalid(t *testing.T) {
 func TestHandler_Logout_NATSError(t *testing.T) {
 	mockNc := &common.MockNatsConn{
 		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
-			if subject == "auth.validate" {
-				resp := map[string]interface{}{
-					"response": map[string]interface{}{
-						"valid": true,
-						"user":  map[string]string{"id": "user-123"},
-					},
-				}
-				respBytes, _ := json.Marshal(resp)
-				return &nats.Msg{Data: respBytes}, nil
-			}
 			return nil, nats.ErrTimeout
 		},
 	}
 	handler := NewHandler(mockNc)
 	req := httptest.NewRequest("POST", "/auth/logout", nil)
-	req.Header.Set("Authorization", "Bearer valid-token")
+	req.Header.Set("Authorization", "Bearer "+makeTestToken("user-123", "testuser", false))
 	w := httptest.NewRecorder()
 	handler.Logout(w, req)
 	if w.Code != http.StatusServiceUnavailable {
@@ -258,7 +219,7 @@ func TestHandler_Refresh(t *testing.T) {
 }
 
 func TestValidateToken_Empty(t *testing.T) {
-	res, err := ValidateToken(&common.MockNatsConn{}, "")
+	res, err := ValidateToken("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,17 +228,44 @@ func TestValidateToken_Empty(t *testing.T) {
 	}
 }
 
-func TestValidateToken_UnmarshalError(t *testing.T) {
-	mockNc := &common.MockNatsConn{
-		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
-			return &nats.Msg{Data: []byte("invalid json")}, nil
-		},
+func TestValidateToken_InvalidFormat(t *testing.T) {
+	res, err := ValidateToken("not-a-jwt")
+	if err != nil {
+		t.Fatal(err)
 	}
-	_, err := ValidateToken(mockNc, "token")
-	if err == nil {
-		t.Error("Expected error for unmarshal failure")
+	if res.IsValid {
+		t.Error("Expected valid=false for malformed token")
 	}
 }
+
+func TestValidateToken_ValidToken(t *testing.T) {
+	token := makeTestToken("user-123", "testuser", false)
+	res, err := ValidateToken(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.IsValid {
+		t.Error("Expected valid=true for valid token")
+	}
+	if res.User.ID != "user-123" {
+		t.Errorf("Expected user ID user-123, got %s", res.User.ID)
+	}
+	if res.User.Username != "testuser" {
+		t.Errorf("Expected username testuser, got %s", res.User.Username)
+	}
+}
+
+func TestValidateToken_ExpiredToken(t *testing.T) {
+	token := makeTestToken("user-123", "testuser", true)
+	res, err := ValidateToken(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.IsValid {
+		t.Error("Expected valid=false for expired token")
+	}
+}
+
 func TestProxyRequest_Fallback(t *testing.T) {
 	mockNc := &common.MockNatsConn{
 		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
@@ -289,20 +277,8 @@ func TestProxyRequest_Fallback(t *testing.T) {
 	req := httptest.NewRequest("POST", "/auth/login", bytes.NewBuffer(bodyBytes))
 	w := httptest.NewRecorder()
 	handler.Login(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status OK, got %d", w.Code)
-	}
-}
-
-func TestValidateToken_NATSError(t *testing.T) {
-	mockNc := &common.MockNatsConn{
-		RequestFunc: func(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
-			return nil, nats.ErrTimeout
-		},
-	}
-	_, err := ValidateToken(mockNc, "token")
-	if err == nil {
-		t.Error("Expected error for NATS timeout")
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status InternalServerError for unparseable response, got %d", w.Code)
 	}
 }
 
@@ -317,7 +293,7 @@ func TestProxyRequest_UnmarshalError(t *testing.T) {
 	req := httptest.NewRequest("POST", "/auth/login", bytes.NewBuffer(bodyBytes))
 	w := httptest.NewRecorder()
 	handler.Login(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status OK (fallback), got %d", w.Code)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status InternalServerError for invalid json, got %d", w.Code)
 	}
 }

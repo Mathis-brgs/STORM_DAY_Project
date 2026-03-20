@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -47,19 +48,25 @@ func NewMinIOClient(bucketName string) (*MinIOClient, error) {
 		return nil, fmt.Errorf("MINIO_ACCESS_KEY ou MINIO_SECRET_KEY manquant")
 	}
 
+	// Si l'endpoint contient déjà un schéma (http:// ou https://), on l'utilise tel quel
+	resolvedEndpoint := endpoint
+	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
+		resolvedEndpoint = "http://" + endpoint
+	}
+	// Supprimer le slash final si présent (le SDK AWS l'ajoute lui-même)
+	resolvedEndpoint = strings.TrimRight(resolvedEndpoint, "/")
+
 	client := s3.New(s3.Options{
-		// L'endpoint doit avoir le préfixe http:// (MinIO local n'a pas de TLS)
-		BaseEndpoint: aws.String("http://" + endpoint),
-		Region:       "us-east-1", // Requis par le SDK mais ignoré par MinIO
+		BaseEndpoint: aws.String(resolvedEndpoint),
+		Region:       "us-east-1", // Requis par le SDK mais ignoré par MinIO/Azure
 		Credentials:  credentials.NewStaticCredentialsProvider(accessKey, secretKey, ""),
-		// Obligatoire pour MinIO car il ne supporte pas le virtual-hosted style
 		UsePathStyle: true,
 	})
 
 	return &MinIOClient{
 		client:     client,
 		bucketName: bucketName,
-		endpoint:   "http://" + endpoint,
+		endpoint:   resolvedEndpoint,
 	}, nil
 }
 

@@ -82,4 +82,5 @@ crash.log
 PLAN_*.md
 
 # Secrets K8s (ne jamais committer)
+infra/k8s/overlays/azure/secrets-azure.yamlservices/**/main
 infra/k8s/overlays/azure/secrets-azure.yaml

@@ -46,8 +46,8 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		token = token[7:]
 	}
 
-	// 1. Validate Token to get User ID
-	valResult, err := ValidateToken(h.nc, token)
+	// 1. Validate Token locally to get User ID
+	valResult, err := ValidateToken(token)
 	if err != nil {
 		log.Printf("[Gateway] Validation Error: %v", err)
 		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)

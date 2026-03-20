@@ -42,7 +42,7 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Valider le token via NATS (appelle le service user/auth sur Azure)
-	valResult, err := auth.ValidateToken(h.nc, token)
+	valResult, err := auth.ValidateToken(token)
 	if err != nil {
 		log.Printf("❌ Erreur NATS (Auth Service): %v", err)
 		http.Error(w, "Authentication service unavailable", http.StatusServiceUnavailable)

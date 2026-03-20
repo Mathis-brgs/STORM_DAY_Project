@@ -24,7 +24,6 @@ namespace: storm
 # On hérite des ressources de base nécessaires
 # On exclut postgres, redis, minio → remplacés par Azure managed services
 resources:
-  - ../../base/namespace.yaml
   - ../../base/nats.yaml             # NATS reste dans le cluster AKS
   - ../../base/nats-exporter.yaml    # Exporter métriques NATS → Prometheus
   - ../../base/gateway-service.yaml
@@ -100,6 +99,8 @@ patches:
               secretKeyRef:
                 name: azure-credentials
                 key: REDIS_URL
+          - name: DB_SSL
+            value: "true"
 
   # Patcher le message-service pour Azure DB for PostgreSQL
   - target:
@@ -150,25 +151,13 @@ patches:
                 name: storm-config
                 key: NATS_URL
           - name: MINIO_ENDPOINT
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_BLOB_ENDPOINT
+            value: "minio:9000"
           - name: MINIO_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_STORAGE_ACCOUNT
+            value: "stormadmin"
           - name: MINIO_SECRET_KEY
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_STORAGE_KEY
+            value: "stormpassword"
           - name: MINIO_BUCKET
-            valueFrom:
-              secretKeyRef:
-                name: azure-credentials
-                key: AZURE_BLOB_CONTAINER
+            value: "media"
 
   # Patcher le notification-service pour Azure Redis
   - target:
@@ -212,6 +201,11 @@ patches:
               configMapKeyRef:
                 name: storm-config
                 key: USER_SERVICE_URL
+          - name: JWT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: azure-credentials
+                key: JWT_SECRET
 
   # Changer le type de service gateway en LoadBalancer Azure
   - target:

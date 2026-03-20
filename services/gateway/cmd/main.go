@@ -152,10 +152,10 @@ func SetupServer(nc common.NatsConn) *chi.Mux {
 			return
 		}
 
-		// 2. Validate Token via NATS
-		valResult, err := auth.ValidateToken(nc, token)
+		// 2. Validate Token locally (no NATS round-trip)
+		valResult, err := auth.ValidateToken(token)
 		if err != nil {
-			log.Printf("Validation NATS Error: %v", err)
+			log.Printf("Validation JWT Error: %v", err)
 			http.Error(w, "Authentication service unavailable", http.StatusServiceUnavailable)
 			return
 		}
