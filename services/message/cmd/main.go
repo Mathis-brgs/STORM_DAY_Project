@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Mathis-brgs/storm-project/services/message/internal/batch"
+	"github.com/Mathis-brgs/storm-project/services/message/internal/metrics"
 	natsh "github.com/Mathis-brgs/storm-project/services/message/internal/nats"
 	"github.com/Mathis-brgs/storm-project/services/message/internal/repo"
 	"github.com/Mathis-brgs/storm-project/services/message/internal/repo/memory"
@@ -46,21 +48,24 @@ func main() {
 		log.Println("storage: memory")
 	}
 
+	m := metrics.New()
+	bw := batch.New(messageRepo, m)
+
 	messageSvc := service.NewMessageService(messageRepo)
 	conversationSvc := service.NewConversationService(conversationRepo)
-	handler := natsh.NewMessageHandler(messageSvc, conversationSvc)
+	handler := natsh.NewMessageHandler(messageSvc, conversationSvc, bw)
 
 	if err := handler.Listen(nc); err != nil {
 		log.Fatalf("listen: %v", err)
 	}
 
-	startHTTPHealthServer()
+	startHTTPServer(m)
 
 	log.Println("ready, listening on NATS")
 	select {}
 }
 
-func startHTTPHealthServer() {
+func startHTTPServer(m *metrics.Metrics) {
 	httpPort := os.Getenv("HTTP_PORT")
 	if strings.TrimSpace(httpPort) == "" {
 		httpPort = "8080"
@@ -71,12 +76,13 @@ func startHTTPHealthServer() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})
+	mux.HandleFunc("/metrics", m.Handler())
 
 	addr := ":" + httpPort
 	go func() {
-		log.Printf("health server listening on %s", addr)
+		log.Printf("HTTP server listening on %s (/health, /metrics)", addr)
 		if err := http.ListenAndServe(addr, mux); err != nil {
-			log.Fatalf("health server listen: %v", err)
+			log.Fatalf("HTTP server: %v", err)
 		}
 	}()
 }

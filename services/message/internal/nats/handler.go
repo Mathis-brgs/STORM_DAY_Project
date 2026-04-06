@@ -8,6 +8,7 @@ import (
 	"time"
 
 	apiv1 "github.com/Mathis-brgs/storm-project/services/message/api/v1"
+	"github.com/Mathis-brgs/storm-project/services/message/internal/batch"
 	"github.com/Mathis-brgs/storm-project/services/message/internal/models"
 	"github.com/Mathis-brgs/storm-project/services/message/internal/repo"
 	"github.com/Mathis-brgs/storm-project/services/message/internal/service"
@@ -46,16 +47,18 @@ const (
 	subjectMarkMessageSeen  = "MESSAGE_MARK_SEEN"
 )
 
-func NewMessageHandler(svc *service.MessageService, conversationSvc *service.ConversationService) *Handler {
+func NewMessageHandler(svc *service.MessageService, conversationSvc *service.ConversationService, bw *batch.Writer) *Handler {
 	return &Handler{
 		svc:             svc,
 		conversationSvc: conversationSvc,
+		batchWriter:     bw,
 	}
 }
 
 type Handler struct {
 	svc             *service.MessageService
 	conversationSvc *service.ConversationService
+	batchWriter     *batch.Writer
 }
 
 func (h *Handler) handleSendMessage(msg *nats.Msg) {
@@ -100,7 +103,7 @@ func (h *Handler) handleSendMessage(msg *nats.Msg) {
 		chatMsg.ForwardFromID = &fwdID
 	}
 
-	result, err := h.svc.SendMessage(chatMsg)
+	result, err := h.batchWriter.Submit(chatMsg)
 	if err != nil {
 		code := mapMessageError(err)
 		h.respondSendMessageError(msg, code, err.Error())

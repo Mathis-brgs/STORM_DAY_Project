@@ -136,6 +136,8 @@ patches:
                 key: NATS_URL
           - name: STORAGE
             value: postgres
+          - name: DB_SSLMODE
+            value: require
 
   # Patcher le media-service pour Azure Blob Storage
   - target:

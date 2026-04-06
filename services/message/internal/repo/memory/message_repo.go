@@ -48,6 +48,18 @@ func (r *messageRepo) SaveMessage(msg *models.ChatMessage) (*models.ChatMessage,
 	return &saved, nil
 }
 
+func (r *messageRepo) BulkSaveMessages(msgs []*models.ChatMessage) ([]*models.ChatMessage, error) {
+	results := make([]*models.ChatMessage, 0, len(msgs))
+	for _, msg := range msgs {
+		saved, err := r.SaveMessage(msg)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, saved)
+	}
+	return results, nil
+}
+
 func (r *messageRepo) GetMessageById(id int) (*models.ChatMessage, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

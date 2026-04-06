@@ -3,8 +3,10 @@ package postgres
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	models "github.com/Mathis-brgs/storm-project/services/message/internal/models"
@@ -67,6 +69,82 @@ func (r *messageRepo) SaveMessage(msg *models.ChatMessage) (*models.ChatMessage,
 	saved.Status = status
 
 	return &saved, nil
+}
+
+func (r *messageRepo) BulkSaveMessages(msgs []*models.ChatMessage) ([]*models.ChatMessage, error) {
+	if len(msgs) == 0 {
+		return nil, nil
+	}
+	if len(msgs) == 1 {
+		saved, err := r.SaveMessage(msgs[0])
+		if err != nil {
+			return nil, err
+		}
+		return []*models.ChatMessage{saved}, nil
+	}
+
+	now := time.Now()
+	const fields = 9
+	placeholders := make([]string, len(msgs))
+	args := make([]interface{}, 0, len(msgs)*fields)
+
+	for i, msg := range msgs {
+		b := i * fields
+		placeholders[i] = fmt.Sprintf(
+			"($%d::uuid,$%d,$%d,$%d,$%d,COALESCE(NULLIF($%d,''),'sent'),$%d,$%d,$%d)",
+			b+1, b+2, b+3, b+4, b+5, b+6, b+7, b+8, b+9,
+		)
+		if msg.CreatedAt.IsZero() {
+			msg.CreatedAt = now
+		}
+		if msg.UpdatedAt.IsZero() {
+			msg.UpdatedAt = now
+		}
+		status := msg.Status
+		if status == "" {
+			status = "sent"
+		}
+		var replyToID, forwardFromID interface{}
+		if msg.ReplyToID != nil {
+			replyToID = *msg.ReplyToID
+		}
+		if msg.ForwardFromID != nil {
+			forwardFromID = *msg.ForwardFromID
+		}
+		args = append(args,
+			msg.SenderID.String(), msg.Content, msg.ConversationID, nullString(msg.Attachment),
+			replyToID, status, forwardFromID,
+			msg.CreatedAt, msg.UpdatedAt,
+		)
+	}
+
+	query := "INSERT INTO messages (sender_id,content,conversation_id,attachment,reply_to_id,status,forward_from_id,created_at,updated_at) VALUES " +
+		strings.Join(placeholders, ",") + " RETURNING id,created_at"
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := make([]*models.ChatMessage, 0, len(msgs))
+	i := 0
+	for rows.Next() {
+		var id int
+		var createdAt time.Time
+		if err := rows.Scan(&id, &createdAt); err != nil {
+			return nil, err
+		}
+		saved := *msgs[i]
+		saved.ID = id
+		saved.CreatedAt = createdAt
+		results = append(results, &saved)
+		i++
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 func (r *messageRepo) GetMessageById(id int) (*models.ChatMessage, error) {

@@ -9,6 +9,7 @@ import (
 
 type MessageRepo interface {
 	SaveMessage(msg *models.ChatMessage) (*models.ChatMessage, error)
+	BulkSaveMessages(msgs []*models.ChatMessage) ([]*models.ChatMessage, error)
 	GetMessageById(id int) (*models.ChatMessage, error)
 	GetMessagesByConversationID(conversationID int) ([]*models.ChatMessage, error)
 	MarkMessageReceivedByID(id int, userID uuid.UUID, receivedAt time.Time) (*models.MessageReceipt, error)
