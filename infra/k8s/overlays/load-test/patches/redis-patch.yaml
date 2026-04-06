@@ -1,0 +1,29 @@
+# Patch Redis — sessions et pub/sub pour 100k connexions
+# maxmemory 2GB, policy allkeys-lru
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: storm
+spec:
+  template:
+    spec:
+      containers:
+        - name: redis
+          command:
+            - redis-server
+            - --maxmemory
+            - 2gb
+            - --maxmemory-policy
+            - allkeys-lru
+            - --tcp-backlog
+            - "511"
+            - --hz
+            - "20"
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "200m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"

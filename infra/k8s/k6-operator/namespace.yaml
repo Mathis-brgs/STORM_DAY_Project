@@ -1,0 +1,7 @@
+# Namespace dédié aux tests k6 operator
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: k6
+  labels:
+    app.kubernetes.io/name: k6-operator

@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-stormday
+  namespace: storm
+  labels:
+    # Label surveillé par le sidecar grafana-sc-dashboard du kube-prometheus-stack
+    grafana_dashboard: "1"
+data:
+  storm-day-live.json: |
+    {
+      "title": "STORM DAY — Live",
+      "uid": "storm-day-live",
+      "schemaVersion": 38,
+      "refresh": "5s",
+      "time": {"from": "now-15m", "to": "now"},
+      "timezone": "browser",
+      "tags": ["storm", "live", "stormday"],
+      "panels": [
+        {
+          "id": 1, "type": "stat", "title": "Connexions WebSocket actives",
+          "description": "sum(storm_ws_active_connections) — toutes les répliques gateway",
+          "gridPos": {"x": 0, "y": 0, "w": 8, "h": 6},
+          "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}, "text": {"titleSize": 16, "valueSize": 48}},
+          "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 50000}, {"color": "red", "value": 90000}]}}},
+          "targets": [{"expr": "sum(storm_ws_active_connections)", "legendFormat": "Connexions WS", "refId": "A"}]
+        },
+        {
+          "id": 2, "type": "stat", "title": "Messages reçus / seconde",
+          "description": "rate(messages_received_total[30s]) — message-service via NATS",
+          "gridPos": {"x": 8, "y": 0, "w": 8, "h": 6},
+          "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}, "text": {"titleSize": 16, "valueSize": 48}},
+          "fieldConfig": {"defaults": {"unit": "reqps", "color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 300000}, {"color": "red", "value": 500000}]}}},
+          "targets": [{"expr": "sum(rate(messages_received_total[30s]))", "legendFormat": "msg/s reçus", "refId": "A"}]
+        },
+        {
+          "id": 3, "type": "stat", "title": "Messages insérés / seconde",
+          "description": "rate(messages_inserted_total[30s]) — insérés en DB avec succès",
+          "gridPos": {"x": 16, "y": 0, "w": 8, "h": 6},
+          "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]}, "text": {"titleSize": 16, "valueSize": 48}},
+          "fieldConfig": {"defaults": {"unit": "reqps", "color": {"mode": "thresholds"}, "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 300000}, {"color": "red", "value": 500000}]}}},
+          "targets": [{"expr": "sum(rate(messages_inserted_total[30s]))", "legendFormat": "msg/s insérés", "refId": "A"}]
+        },
+        {
+          "id": 10, "type": "timeseries", "title": "Connexions WebSocket actives (toutes répliques)",
+          "gridPos": {"x": 0, "y": 6, "w": 12, "h": 10},
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}, "tooltip": {"mode": "multi"}},
+          "fieldConfig": {"defaults": {"unit": "short", "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 20, "spanNulls": true}}},
+          "targets": [
+            {"expr": "sum(storm_ws_active_connections)", "legendFormat": "Total connexions WS", "refId": "A"},
+            {"expr": "storm_ws_active_connections", "legendFormat": "Pod {{instance}}", "refId": "B"}
+          ]
+        },
+        {
+          "id": 11, "type": "timeseries", "title": "Throughput messages/s",
+          "gridPos": {"x": 12, "y": 6, "w": 12, "h": 10},
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}, "tooltip": {"mode": "multi"}},
+          "fieldConfig": {"defaults": {"unit": "reqps", "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "spanNulls": true}}},
+          "targets": [
+            {"expr": "sum(rate(messages_received_total[30s]))", "legendFormat": "Reçus NATS/s", "refId": "A"},
+            {"expr": "sum(rate(messages_inserted_total[30s]))", "legendFormat": "Insérés DB/s", "refId": "B"},
+            {"expr": "sum(rate(messages_insert_errors_total[30s]))", "legendFormat": "Erreurs/s", "refId": "C"}
+          ]
+        },
+        {
+          "id": 20, "type": "timeseries", "title": "Goroutines Gateway",
+          "gridPos": {"x": 0, "y": 16, "w": 8, "h": 8},
+          "options": {"legend": {"displayMode": "list"}, "tooltip": {"mode": "multi"}},
+          "fieldConfig": {"defaults": {"unit": "short", "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 10}}},
+          "targets": [{"expr": "sum(go_goroutines{job=\"gateway-service\"})", "legendFormat": "Goroutines gateway", "refId": "A"}]
+        },
+        {
+          "id": 21, "type": "timeseries", "title": "Durée moyenne flush batch (ms)",
+          "gridPos": {"x": 8, "y": 16, "w": 8, "h": 8},
+          "options": {"legend": {"displayMode": "list"}, "tooltip": {"mode": "multi"}},
+          "fieldConfig": {"defaults": {"unit": "ms", "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 10}}},
+          "targets": [
+            {"expr": "messages_batch_flush_avg_ms", "legendFormat": "Flush batch avg ms", "refId": "A"},
+            {"expr": "messages_batch_avg_size", "legendFormat": "Taille batch avg", "refId": "B"}
+          ]
+        },
+        {
+          "id": 22, "type": "timeseries", "title": "Erreurs insertion DB",
+          "gridPos": {"x": 16, "y": 16, "w": 8, "h": 8},
+          "options": {"legend": {"displayMode": "list"}, "tooltip": {"mode": "multi"}},
+          "fieldConfig": {"defaults": {"unit": "short", "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 10}, "color": {"fixedColor": "red", "mode": "fixed"}}},
+          "targets": [{"expr": "rate(messages_insert_errors_total[1m])", "legendFormat": "Erreurs DB/s", "refId": "A"}]
+        }
+      ]
+    }

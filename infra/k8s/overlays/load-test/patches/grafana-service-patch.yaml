@@ -1,0 +1,17 @@
+# Expose Grafana publiquement via Azure Load Balancer
+# Azure provisionne une IP publique automatiquement (visible dans kubectl get svc)
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: storm
+  annotations:
+    # Optionnel : IP statique si déjà réservée dans Azure
+    # service.beta.kubernetes.io/azure-load-balancer-ipv4: "X.X.X.X"
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3001
+      protocol: TCP

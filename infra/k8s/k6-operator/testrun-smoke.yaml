@@ -1,0 +1,40 @@
+# TestRun minimal — valider que le k6 operator fonctionne
+# 1 pod, 5 VUs, 30s → visible immédiatement dans Prometheus/Grafana
+apiVersion: k6.io/v1alpha1
+kind: TestRun
+metadata:
+  name: storm-smoke
+  namespace: k6
+spec:
+  parallelism: 1
+  script:
+    configMap:
+      name: storm-ws-connections-script
+      file: ws-connections.js
+  arguments: --out experimental-prometheus-rw
+  runner:
+    image: grafana/k6:latest
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+    env:
+      - name: K6_VUS
+        value: "5"
+      - name: K6_RAMP_SECONDS
+        value: "10"
+      - name: BASE_URL
+        value: "http://gateway-service.storm:8080"
+      - name: WS_URL
+        value: "ws://gateway-service.storm:8080"
+      - name: TEST_EMAIL
+        value: "k6-validate@storm.dev"
+      - name: TEST_PASSWORD
+        value: "k6password123"
+      - name: K6_PROMETHEUS_RW_SERVER_URL
+        value: "http://kube-prometheus-stack-prometheus.storm:9090/api/v1/write"
+      - name: K6_PROMETHEUS_RW_PUSH_INTERVAL
+        value: "5s"

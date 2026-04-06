@@ -1,0 +1,37 @@
+# Patch PostgreSQL Message pour haute écriture (batch inserts à ~500k rows/s)
+# shared_buffers=2GB, max_connections=200, wal_buffers=64MB
+# Désactive fsync en load test uniquement (DANGEREUX en production)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-message
+  namespace: storm
+spec:
+  template:
+    spec:
+      containers:
+        - name: postgres
+          # Paramètres de tuning passés en args PostgreSQL
+          args:
+            - postgres
+            - -c
+            - shared_buffers=2GB
+            - -c
+            - max_connections=200
+            - -c
+            - wal_buffers=64MB
+            - -c
+            - checkpoint_completion_target=0.9
+            - -c
+            - synchronous_commit=off
+            - -c
+            - work_mem=64MB
+            - -c
+            - effective_cache_size=4GB
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1"
+            limits:
+              memory: "6Gi"
+              cpu: "4"

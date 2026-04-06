@@ -1,0 +1,65 @@
+# TestRun k6 Operator — 100 000 connexions WebSocket simultanées
+# 50 pods k6 × 2 000 VUs/pod = 100 000 connexions
+#
+# Prérequis :
+#   kubectl apply -f https://github.com/grafana/k6-operator/releases/latest/download/bundle.yaml
+#   kubectl apply -f infra/k8s/k6-operator/namespace.yaml
+#   kubectl apply -f infra/k8s/k6-operator/configmap-ws-connections.yaml
+#
+# Lancement :
+#   kubectl apply -f infra/k8s/k6-operator/testrun-100k-connections.yaml
+#
+# Suivi :
+#   kubectl get testrun -n k6
+#   kubectl logs -n k6 -l k6_cr=storm-ws-100k-connections -f
+apiVersion: k6.io/v1alpha1
+kind: TestRun
+metadata:
+  name: storm-ws-100k-connections
+  namespace: k6
+spec:
+  parallelism: 48
+  script:
+    configMap:
+      name: storm-ws-connections-script
+      file: ws-connections.js
+  # Push métriques vers Prometheus Remote Write (activé dans overlay load-test)
+  arguments: --out experimental-prometheus-rw
+  runner:
+    image: grafana/k6:latest
+    serviceAccountName: k6-runner
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+    env:
+      - name: K6_VUS
+        value: "96000"
+      # Ramp sur 5 minutes = 300s
+      - name: K6_RAMP_SECONDS
+        value: "300"
+      - name: BASE_URL
+        value: "http://gateway-service.storm:8080"
+      - name: WS_URL
+        value: "ws://gateway-service.storm:8080"
+      - name: TEST_EMAIL
+        value: "k6-validate@storm.dev"
+      - name: TEST_PASSWORD
+        value: "k6password123"
+      # Prometheus Remote Write — Prometheus dans le namespace storm
+      - name: K6_PROMETHEUS_RW_SERVER_URL
+        value: "http://kube-prometheus-stack-prometheus.storm:9090/api/v1/write"
+      # Pousse toutes les 5s pour une vue quasi temps-réel dans Grafana
+      - name: K6_PROMETHEUS_RW_PUSH_INTERVAL
+        value: "5s"
+      # Utilise les histogrammes natifs Prometheus (meilleure précision p95/p99)
+      - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+        value: "true"
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+  starter:
+    image: ghcr.io/grafana/k6-operator:latest-starter

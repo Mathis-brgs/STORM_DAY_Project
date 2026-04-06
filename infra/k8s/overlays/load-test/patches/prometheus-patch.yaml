@@ -1,0 +1,27 @@
+# Active le receiver Remote Write de Prometheus
+# Permet aux pods k6 de pousser leurs métriques directement vers Prometheus
+# via POST http://prometheus.storm:9090/api/v1/write
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: storm
+spec:
+  template:
+    spec:
+      containers:
+        - name: prometheus
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=7d"
+            - "--web.enable-lifecycle"
+            # Active l'endpoint /api/v1/write pour recevoir les métriques k6
+            - "--web.enable-remote-write-receiver"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"

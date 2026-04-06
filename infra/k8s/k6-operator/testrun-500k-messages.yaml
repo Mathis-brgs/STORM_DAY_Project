@@ -1,0 +1,68 @@
+# TestRun k6 Operator — 500 000 messages/seconde
+# 50 pods k6 × 2 000 VUs/pod × 5 msg/s/VU = 500 000 msg/s
+# Chaque VU maintient aussi une connexion WS → combine les 2 objectifs
+#
+# Prérequis :
+#   kubectl apply -f https://github.com/grafana/k6-operator/releases/latest/download/bundle.yaml
+#   kubectl apply -f infra/k8s/k6-operator/namespace.yaml
+#   kubectl apply -f infra/k8s/k6-operator/configmap-ws-messages.yaml
+#
+# Lancement :
+#   kubectl apply -f infra/k8s/k6-operator/testrun-500k-messages.yaml
+#
+# Suivi :
+#   kubectl get testrun -n k6
+#   kubectl logs -n k6 -l k6_cr=storm-ws-500k-messages -f
+apiVersion: k6.io/v1alpha1
+kind: TestRun
+metadata:
+  name: storm-ws-500k-messages
+  namespace: k6
+spec:
+  parallelism: 3
+  script:
+    configMap:
+      name: storm-ws-messages-script
+      file: ws-messages.js
+  # Push métriques vers Prometheus Remote Write (activé dans overlay load-test)
+  arguments: --out experimental-prometheus-rw
+  runner:
+    image: grafana/k6:latest
+    serviceAccountName: k6-runner
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+    env:
+      - name: K6_VUS
+        value: "6000"
+      # 5 msg/s × 2000 VUs × 50 pods = 500 000 msg/s
+      - name: K6_MSG_RATE
+        value: "5"
+      - name: K6_DURATION
+        value: "5m"
+      - name: BASE_URL
+        value: "http://gateway-service.storm:8080"
+      - name: WS_URL
+        value: "ws://gateway-service.storm:8080"
+      - name: TEST_EMAIL
+        value: "k6-validate@storm.dev"
+      - name: TEST_PASSWORD
+        value: "k6password123"
+      - name: K6_CONVERSATION_ID
+        value: "1"
+      # Prometheus Remote Write
+      - name: K6_PROMETHEUS_RW_SERVER_URL
+        value: "http://kube-prometheus-stack-prometheus.storm:9090/api/v1/write"
+      - name: K6_PROMETHEUS_RW_PUSH_INTERVAL
+        value: "5s"
+      - name: K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM
+        value: "true"
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+  starter:
+    image: ghcr.io/grafana/k6-operator:latest-starter

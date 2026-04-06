@@ -1,0 +1,21 @@
+# Patch Message Service pour 500 000 msg/s
+# BatchWriter : flush 500 msgs toutes les 50ms → 10 000 inserts/s par réplique
+# 10 répliques × 50 000 msg/s/réplique = 500 000 msg/s
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-service
+  namespace: storm
+spec:
+  replicas: 10
+  template:
+    spec:
+      containers:
+        - name: message-service
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1"

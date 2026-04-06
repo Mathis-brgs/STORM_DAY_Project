@@ -1,0 +1,40 @@
+# RBAC pour k6 operator et runner pods
+# Le bundle k6-operator crée son propre ClusterRole pour gérer les TestRun CRDs.
+# Ce fichier crée le ServiceAccount utilisé par les pods runner k6
+# et les permissions pour lire les ConfigMaps de scripts.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k6-runner
+  namespace: k6
+
+---
+# Les runner pods ont besoin de lire les ConfigMaps de scripts dans le namespace k6
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: k6-runner
+  namespace: k6
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k6-runner
+  namespace: k6
+subjects:
+  - kind: ServiceAccount
+    name: k6-runner
+    namespace: k6
+roleRef:
+  kind: Role
+  name: k6-runner
+  apiGroup: rbac.authorization.k8s.io

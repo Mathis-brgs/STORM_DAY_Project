@@ -1,0 +1,20 @@
+# Ajoute le dashboard k6 Storm Day à Grafana
+# Monte un volume supplémentaire dans /var/lib/grafana/dashboards/k6/
+# (le provider Grafana scanne récursivement ce dossier)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: storm
+spec:
+  template:
+    spec:
+      containers:
+        - name: grafana
+          volumeMounts:
+            - name: dashboard-k6
+              mountPath: /var/lib/grafana/dashboards/k6
+      volumes:
+        - name: dashboard-k6
+          configMap:
+            name: grafana-dashboard-k6

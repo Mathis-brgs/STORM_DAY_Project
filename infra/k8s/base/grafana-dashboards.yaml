@@ -13,5 +13,176 @@ data:
   auth.json: |
     {"title":"STORM — Auth / User Service","uid":"storm-auth","description":"Monitoring User Service (NestJS). Métriques process si prom-client exposé.","schemaVersion":42,"refresh":"5s","time":{"from":"now-15m","to":"now"},"timezone":"browser","tags":["storm","auth","user"],"templating":{"list":[{"name":"datasource","type":"datasource","pluginId":"prometheus","label":"Datasource","hide":0,"refresh":1}]},"panels":[{"id":1,"type":"row","title":"Santé & État","gridPos":{"x":0,"y":0,"w":24,"h":1},"collapsed":false},{"id":2,"type":"stat","title":"User Service UP","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":0,"y":1,"w":4,"h":4},"options":{"colorMode":"background","graphMode":"none","reduceOptions":{"calcs":["lastNotNull"]}},"fieldConfig":{"defaults":{"mappings":[{"type":"value","options":{"1":{"text":"UP","color":"green"},"0":{"text":"DOWN","color":"red"}}}],"thresholds":{"mode":"absolute","steps":[{"value":0,"color":"red"},{"value":1,"color":"green"}]}}},"targets":[{"expr":"up{job=\"user\"}","refId":"A"}]},{"id":3,"type":"stat","title":"Mémoire RSS","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":4,"y":1,"w":4,"h":4},"options":{"colorMode":"background","graphMode":"area","reduceOptions":{"calcs":["lastNotNull"]}},"fieldConfig":{"defaults":{"unit":"bytes","thresholds":{"mode":"absolute","steps":[{"value":0,"color":"green"},{"value":268435456,"color":"yellow"},{"value":536870912,"color":"red"}]}}},"targets":[{"expr":"process_resident_memory_bytes{job=\"user\"}","refId":"A"}]},{"id":4,"type":"stat","title":"CPU %","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":8,"y":1,"w":4,"h":4},"options":{"colorMode":"background","graphMode":"area","reduceOptions":{"calcs":["lastNotNull"]}},"fieldConfig":{"defaults":{"unit":"percent","thresholds":{"mode":"absolute","steps":[{"value":0,"color":"green"},{"value":50,"color":"yellow"},{"value":80,"color":"red"}]}}},"targets":[{"expr":"rate(process_cpu_seconds_total{job=\"user\"}[1m]) * 100","refId":"A"}]},{"id":5,"type":"stat","title":"FDs ouverts","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":12,"y":1,"w":4,"h":4},"options":{"colorMode":"background","graphMode":"area","reduceOptions":{"calcs":["lastNotNull"]}},"fieldConfig":{"defaults":{"unit":"short","thresholds":{"mode":"absolute","steps":[{"value":0,"color":"green"},{"value":500,"color":"yellow"},{"value":1000,"color":"red"}]}}},"targets":[{"expr":"process_open_fds{job=\"user\"}","refId":"A"}]},{"id":6,"type":"row","title":"Performance Auth (NestJS)","gridPos":{"x":0,"y":5,"w":24,"h":1},"collapsed":false},{"id":7,"type":"timeseries","title":"CPU & Mémoire — User Service","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":0,"y":6,"w":12,"h":8},"options":{"legend":{"displayMode":"table","placement":"bottom","calcs":["mean","max","lastNotNull"]},"tooltip":{"mode":"multi"}},"fieldConfig":{"defaults":{"custom":{"drawStyle":"line","lineWidth":2,"fillOpacity":10,"spanNulls":true}},"overrides":[{"matcher":{"id":"byName","options":"CPU %"},"properties":[{"id":"unit","value":"percent"}]},{"matcher":{"id":"byName","options":"Mémoire RSS"},"properties":[{"id":"unit","value":"bytes"}]}]},"targets":[{"expr":"rate(process_cpu_seconds_total{job=\"user\"}[1m]) * 100","legendFormat":"CPU %","refId":"A"},{"expr":"process_resident_memory_bytes{job=\"user\"}","legendFormat":"Mémoire RSS","refId":"B"}]},{"id":8,"type":"timeseries","title":"Heap NestJS (prom-client)","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":12,"y":6,"w":12,"h":8},"options":{"legend":{"displayMode":"table","placement":"bottom","calcs":["mean","max","lastNotNull"]},"tooltip":{"mode":"multi"}},"fieldConfig":{"defaults":{"unit":"bytes","custom":{"drawStyle":"line","lineWidth":2,"fillOpacity":10,"spanNulls":true}}},"targets":[{"expr":"nodejs_heap_size_used_bytes{job=\"user\"}","legendFormat":"Heap utilisé","refId":"A"},{"expr":"nodejs_heap_size_total_bytes{job=\"user\"}","legendFormat":"Heap total","refId":"B"}]},{"id":9,"type":"row","title":"NATS — Auth flow","gridPos":{"x":0,"y":14,"w":24,"h":1},"collapsed":false},{"id":10,"type":"timeseries","title":"NATS — Messages/s (auth.validate)","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":0,"y":15,"w":12,"h":8},"options":{"legend":{"displayMode":"table","placement":"bottom","calcs":["mean","max","lastNotNull"]},"tooltip":{"mode":"multi"}},"fieldConfig":{"defaults":{"unit":"short","custom":{"drawStyle":"line","lineWidth":2,"fillOpacity":10,"spanNulls":true}}},"targets":[{"expr":"rate(gnatsd_varz_in_msgs[1m])","legendFormat":"msgs NATS/s","refId":"A"}]}]}
 
+  storm-day-live.json: |
+    {
+      "title": "STORM DAY — Live",
+      "uid": "storm-day-live",
+      "schemaVersion": 38,
+      "refresh": "5s",
+      "time": {"from": "now-15m", "to": "now"},
+      "timezone": "browser",
+      "tags": ["storm", "live", "stormday"],
+      "panels": [
+        {
+          "id": 1, "type": "stat", "title": "Connexions WebSocket actives",
+          "description": "sum(storm_ws_active_connections) — toutes les répliques gateway",
+          "gridPos": {"x": 0, "y": 0, "w": 8, "h": 6},
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "reduceOptions": {"calcs": ["lastNotNull"]},
+            "text": {"titleSize": 16, "valueSize": 48}
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {"mode": "thresholds"},
+              "thresholds": {"steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 50000},
+                {"color": "red", "value": 90000}
+              ]}
+            }
+          },
+          "targets": [{"expr": "sum(storm_ws_active_connections)", "legendFormat": "Connexions WS", "refId": "A"}],
+          "datasource": {"type": "prometheus", "uid": "${datasource}"}
+        },
+        {
+          "id": 2, "type": "stat", "title": "Messages reçus / seconde",
+          "description": "rate(messages_received_total[30s]) — message-service via NATS",
+          "gridPos": {"x": 8, "y": 0, "w": 8, "h": 6},
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "reduceOptions": {"calcs": ["lastNotNull"]},
+            "text": {"titleSize": 16, "valueSize": 48}
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": {"mode": "thresholds"},
+              "thresholds": {"steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 300000},
+                {"color": "red", "value": 500000}
+              ]}
+            }
+          },
+          "targets": [{"expr": "sum(rate(messages_received_total[30s]))", "legendFormat": "msg/s reçus", "refId": "A"}],
+          "datasource": {"type": "prometheus", "uid": "${datasource}"}
+        },
+        {
+          "id": 3, "type": "stat", "title": "Messages insérés / seconde",
+          "description": "rate(messages_inserted_total[30s]) — insérés en DB avec succès",
+          "gridPos": {"x": 16, "y": 0, "w": 8, "h": 6},
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "reduceOptions": {"calcs": ["lastNotNull"]},
+            "text": {"titleSize": 16, "valueSize": 48}
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "color": {"mode": "thresholds"},
+              "thresholds": {"steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 300000},
+                {"color": "red", "value": 500000}
+              ]}
+            }
+          },
+          "targets": [{"expr": "sum(rate(messages_inserted_total[30s]))", "legendFormat": "msg/s insérés", "refId": "A"}],
+          "datasource": {"type": "prometheus", "uid": "${datasource}"}
+        },
+        {
+          "id": 10, "type": "timeseries", "title": "Connexions WebSocket actives (toutes répliques)",
+          "gridPos": {"x": 0, "y": 6, "w": 12, "h": 10},
+          "options": {
+            "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]},
+            "tooltip": {"mode": "multi"}
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 20, "spanNulls": true},
+              "color": {"mode": "palette-classic"},
+              "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "red", "value": 100000}]}
+            }
+          },
+          "targets": [
+            {"expr": "sum(storm_ws_active_connections)", "legendFormat": "Total connexions WS", "refId": "A"},
+            {"expr": "storm_ws_active_connections", "legendFormat": "Pod {{instance}}", "refId": "B"}
+          ],
+          "datasource": {"type": "prometheus", "uid": "${datasource}"}
+        },
+        {
+          "id": 11, "type": "timeseries", "title": "Throughput messages/s",
+          "gridPos": {"x": 12, "y": 6, "w": 12, "h": 10},
+          "options": {
+            "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]},
+            "tooltip": {"mode": "multi"}
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "spanNulls": true}
+            }
+          },
+          "targets": [
+            {"expr": "sum(rate(messages_received_total[30s]))", "legendFormat": "Reçus NATS/s", "refId": "A"},
+            {"expr": "sum(rate(messages_inserted_total[30s]))", "legendFormat": "Insérés DB/s", "refId": "B"},
+            {"expr": "sum(rate(messages_insert_errors_total[30s]))", "legendFormat": "Erreurs/s", "refId": "C"}
+          ],
+          "datasource": {"type": "prometheus", "uid": "${datasource}"}
+        },
+        {
+          "id": 20, "type": "timeseries", "title": "Goroutines Gateway (proxy WS)",
+          "gridPos": {"x": 0, "y": 16, "w": 8, "h": 8},
+          "options": {"legend": {"displayMode": "list"}, "tooltip": {"mode": "multi"}},
+          "fieldConfig": {"defaults": {"unit": "short", "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 10}}},
+          "targets": [{"expr": "sum(go_goroutines{job=\"gateway\"})", "legendFormat": "Goroutines gateway", "refId": "A"}],
+          "datasource": {"type": "prometheus", "uid": "${datasource}"}
+        },
+        {
+          "id": 21, "type": "timeseries", "title": "Durée moyenne flush batch (ms)",
+          "gridPos": {"x": 8, "y": 16, "w": 8, "h": 8},
+          "options": {"legend": {"displayMode": "list"}, "tooltip": {"mode": "multi"}},
+          "fieldConfig": {"defaults": {"unit": "ms", "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 10}}},
+          "targets": [
+            {"expr": "messages_batch_flush_avg_ms", "legendFormat": "Flush batch avg ms", "refId": "A"},
+            {"expr": "messages_batch_avg_size", "legendFormat": "Taille batch avg", "refId": "B"}
+          ],
+          "datasource": {"type": "prometheus", "uid": "${datasource}"}
+        },
+        {
+          "id": 22, "type": "timeseries", "title": "Erreurs d'insertion DB",
+          "gridPos": {"x": 16, "y": 16, "w": 8, "h": 8},
+          "options": {"legend": {"displayMode": "list"}, "tooltip": {"mode": "multi"}},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 10},
+              "color": {"fixedColor": "red", "mode": "fixed"}
+            }
+          },
+          "targets": [{"expr": "rate(messages_insert_errors_total[1m])", "legendFormat": "Erreurs DB/s", "refId": "A"}],
+          "datasource": {"type": "prometheus", "uid": "${datasource}"}
+        }
+      ],
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "type": "datasource",
+            "pluginId": "prometheus",
+            "label": "Datasource",
+            "hide": 0,
+            "refresh": 1
+          }
+        ]
+      }
+    }
+
   notifications.json: |
     {"title":"STORM — Notification Service","uid":"storm-notifications","description":"Monitoring Notification Service (Go + Redis + NATS).","schemaVersion":42,"refresh":"5s","time":{"from":"now-15m","to":"now"},"timezone":"browser","tags":["storm","notification","redis"],"templating":{"list":[{"name":"datasource","type":"datasource","pluginId":"prometheus","label":"Datasource","hide":0,"refresh":1}]},"panels":[{"id":1,"type":"row","title":"Santé & État","gridPos":{"x":0,"y":0,"w":24,"h":1},"collapsed":false},{"id":2,"type":"stat","title":"Notification Service UP","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":0,"y":1,"w":4,"h":4},"options":{"colorMode":"background","graphMode":"none","reduceOptions":{"calcs":["lastNotNull"]}},"fieldConfig":{"defaults":{"mappings":[{"type":"value","options":{"1":{"text":"UP","color":"green"},"0":{"text":"DOWN","color":"red"}}}],"thresholds":{"mode":"absolute","steps":[{"value":0,"color":"red"},{"value":1,"color":"green"}]}}},"targets":[{"expr":"up{job=\"notification\"}","refId":"A"}]},{"id":3,"type":"stat","title":"Goroutines","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":4,"y":1,"w":4,"h":4},"options":{"colorMode":"background","graphMode":"area","reduceOptions":{"calcs":["lastNotNull"]}},"fieldConfig":{"defaults":{"unit":"short","thresholds":{"mode":"absolute","steps":[{"value":0,"color":"green"},{"value":100,"color":"yellow"},{"value":500,"color":"red"}]}}},"targets":[{"expr":"go_goroutines{job=\"notification\"}","refId":"A"}]},{"id":4,"type":"stat","title":"Mémoire RSS","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":8,"y":1,"w":4,"h":4},"options":{"colorMode":"background","graphMode":"area","reduceOptions":{"calcs":["lastNotNull"]}},"fieldConfig":{"defaults":{"unit":"bytes","thresholds":{"mode":"absolute","steps":[{"value":0,"color":"green"},{"value":134217728,"color":"yellow"},{"value":268435456,"color":"red"}]}}},"targets":[{"expr":"process_resident_memory_bytes{job=\"notification\"}","refId":"A"}]},{"id":5,"type":"stat","title":"CPU %","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":12,"y":1,"w":4,"h":4},"options":{"colorMode":"background","graphMode":"area","reduceOptions":{"calcs":["lastNotNull"]}},"fieldConfig":{"defaults":{"unit":"percent","thresholds":{"mode":"absolute","steps":[{"value":0,"color":"green"},{"value":30,"color":"yellow"},{"value":60,"color":"red"}]}}},"targets":[{"expr":"rate(process_cpu_seconds_total{job=\"notification\"}[1m]) * 100","refId":"A"}]},{"id":6,"type":"row","title":"Performance Go Runtime","gridPos":{"x":0,"y":5,"w":24,"h":1},"collapsed":false},{"id":7,"type":"timeseries","title":"Goroutines","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":0,"y":6,"w":12,"h":8},"options":{"legend":{"displayMode":"table","placement":"bottom","calcs":["mean","max","lastNotNull"]},"tooltip":{"mode":"multi"}},"fieldConfig":{"defaults":{"unit":"short","custom":{"drawStyle":"line","lineWidth":2,"fillOpacity":15,"spanNulls":true}}},"targets":[{"expr":"go_goroutines{job=\"notification\"}","legendFormat":"goroutines","refId":"A"}]},{"id":8,"type":"timeseries","title":"Mémoire Go Heap","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":12,"y":6,"w":12,"h":8},"options":{"legend":{"displayMode":"table","placement":"bottom","calcs":["mean","max","lastNotNull"]},"tooltip":{"mode":"multi"}},"fieldConfig":{"defaults":{"unit":"bytes","custom":{"drawStyle":"line","lineWidth":2,"fillOpacity":10,"spanNulls":true}}},"targets":[{"expr":"go_memstats_alloc_bytes{job=\"notification\"}","legendFormat":"Heap alloué","refId":"A"},{"expr":"go_memstats_sys_bytes{job=\"notification\"}","legendFormat":"Sys total","refId":"B"}]},{"id":9,"type":"row","title":"NATS — Flux Notifications","gridPos":{"x":0,"y":14,"w":24,"h":1},"collapsed":false},{"id":10,"type":"timeseries","title":"NATS msgs/s (notification.send, message.sent)","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":0,"y":15,"w":12,"h":8},"options":{"legend":{"displayMode":"table","placement":"bottom","calcs":["mean","max","lastNotNull"]},"tooltip":{"mode":"multi"}},"fieldConfig":{"defaults":{"unit":"short","custom":{"drawStyle":"line","lineWidth":2,"fillOpacity":10,"spanNulls":true}}},"targets":[{"expr":"rate(gnatsd_varz_in_msgs[1m])","legendFormat":"msgs entrants/s","refId":"A"},{"expr":"rate(gnatsd_varz_out_msgs[1m])","legendFormat":"msgs sortants/s","refId":"B"}]},{"id":11,"type":"timeseries","title":"GC Go — Durée & Fréquence","datasource":{"type":"prometheus","uid":"${datasource}"},"gridPos":{"x":12,"y":15,"w":12,"h":8},"options":{"legend":{"displayMode":"table","placement":"bottom","calcs":["mean","max","lastNotNull"]},"tooltip":{"mode":"multi"}},"fieldConfig":{"defaults":{"unit":"s","custom":{"drawStyle":"line","lineWidth":2,"fillOpacity":10,"spanNulls":true}}},"targets":[{"expr":"rate(go_gc_duration_seconds_sum{job=\"notification\"}[1m])","legendFormat":"durée GC/s","refId":"A"},{"expr":"rate(go_gc_duration_seconds_count{job=\"notification\"}[1m])","legendFormat":"nb GC/s","refId":"B"}]}]}
