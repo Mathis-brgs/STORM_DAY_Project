@@ -133,7 +133,7 @@ data:
 
           msgSendLatency.add(Date.now() - sentAt);
 
-          const ok = res.status === 200 || res.status === 201;
+          const ok = res.status === 200 || res.status === 201 || res.status === 202;
           msgErrors.add(!ok);
 
           if (ok) {

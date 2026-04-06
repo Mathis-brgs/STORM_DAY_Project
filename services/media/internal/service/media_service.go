@@ -8,9 +8,14 @@ import (
 	"io"
 	"strings"
 	"time"
-
-	"github.com/Mathis-brgs/storm-project/services/media/internal/storage"
 )
+
+// StorageClient abstracts the object storage backend (MinIO, Azure Blob, etc.)
+type StorageClient interface {
+	UploadFile(ctx context.Context, key string, body io.Reader, contentType string) error
+	DeleteFile(ctx context.Context, key string) error
+	GetFileURL(key string) string
+}
 
 // Types MIME autorisés pour l'upload
 var allowedMimeTypes = map[string]bool{
@@ -24,7 +29,7 @@ var allowedMimeTypes = map[string]bool{
 }
 
 type MediaService struct {
-	storage *storage.MinIOClient
+	storage StorageClient
 }
 
 type UploadRequest struct {
@@ -40,7 +45,7 @@ type UploadResponse struct {
 	URL     string `json:"url"`
 }
 
-func NewMediaService(storageClient *storage.MinIOClient) *MediaService {
+func NewMediaService(storageClient StorageClient) *MediaService {
 	return &MediaService{storage: storageClient}
 }
 

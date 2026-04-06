@@ -31,7 +31,9 @@ func main() {
 	var nc *nats.Conn
 	var err error
 	for i := 0; i < 10; i++ {
-		nc, err = nats.Connect(natsURL)
+		nc, err = nats.Connect(natsURL,
+			nats.NoEcho(),
+		)
 		if err == nil {
 			break
 		}

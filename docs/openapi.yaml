@@ -1,0 +1,828 @@
+openapi: "3.1.0"
+info:
+  title: STORM — API de messagerie temps-réel
+  description: |
+    API REST du projet STORM. Tous les endpoints sont exposés par le **Gateway Service** (Go + chi).
+    Les services métier (User, Message, Media, Notification) communiquent via **NATS JetStream** en interne.
+
+    ## Authentification
+    La plupart des endpoints protégés nécessitent un `Bearer <access_token>` dans le header `Authorization`.
+    Le token est obtenu via `POST /auth/login` (JWT RS256, durée 15 min).
+
+    ## WebSocket
+    La connexion temps-réel se fait sur `GET /ws?token=<access_token>`.
+    Voir la section WebSocket pour le contrat de messages.
+  version: "1.0.0"
+  contact:
+    name: Équipe STORM
+servers:
+  - url: http://localhost:8080
+    description: Développement local (docker-compose ou k3d)
+  - url: https://storm.example.com
+    description: Production (Azure AKS)
+
+tags:
+  - name: Auth
+    description: Inscription, connexion, refresh et déconnexion
+  - name: Users
+    description: Gestion des profils utilisateurs
+  - name: Messages
+    description: Envoi et récupération des messages
+  - name: Groups
+    description: Gestion des groupes de conversation
+  - name: Media
+    description: Upload de fichiers (images, vidéos)
+  - name: WebSocket
+    description: Connexion temps-réel (upgrade HTTP → WS)
+  - name: System
+    description: Health check et métriques
+
+paths:
+  # ── Auth ──────────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Créer un compte utilisateur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterDto"
+            example:
+              username: alice
+              email: alice@example.com
+              password: "S3cur3P@ss!"
+      responses:
+        "201":
+          description: Compte créé, tokens retournés
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Email déjà utilisé
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Connexion et obtention des tokens JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginDto"
+            example:
+              email: alice@example.com
+              password: "S3cur3P@ss!"
+      responses:
+        "200":
+          description: Authentification réussie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Renouveler l'access token via le refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: Nouveau access token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Déconnexion (révocation du refresh token)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Déconnecté
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Users ─────────────────────────────────────────────────────────────────
+  /users/search:
+    get:
+      tags: [Users]
+      summary: Rechercher des utilisateurs par nom
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Terme de recherche (username ou email)
+      responses:
+        "200":
+          description: Liste des utilisateurs correspondants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Obtenir le profil d'un utilisateur
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      responses:
+        "200":
+          description: Profil utilisateur
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Users]
+      summary: Mettre à jour son profil
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserDto"
+      responses:
+        "200":
+          description: Profil mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Modification d'un autre utilisateur interdite
+
+  # ── Messages ──────────────────────────────────────────────────────────────
+  /api/messages:
+    post:
+      tags: [Messages]
+      summary: Envoyer un message dans une conversation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageDto"
+            example:
+              conversationId: "conv-abc123"
+              content: "Bonjour !"
+              type: text
+      responses:
+        "201":
+          description: Message enregistré (broadcast WebSocket déclenché)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    get:
+      tags: [Messages]
+      summary: Lister les messages d'une conversation ou d'un groupe
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: conversation_id
+          in: query
+          schema:
+            type: string
+          description: ID de la conversation directe
+        - name: group_id
+          in: query
+          schema:
+            type: string
+          description: ID du groupe
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Curseur de pagination (ID du dernier message connu)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Liste paginée des messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/messages/{id}:
+    get:
+      tags: [Messages]
+      summary: Obtenir un message par son ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/MessageID"
+      responses:
+        "200":
+          description: Message trouvé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Messages]
+      summary: Modifier le contenu d'un message
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/MessageID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+      responses:
+        "200":
+          description: Message modifié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessage"
+        "403":
+          description: Modification d'un message d'un autre utilisateur interdite
+    delete:
+      tags: [Messages]
+      summary: Supprimer un message
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/MessageID"
+      responses:
+        "204":
+          description: Message supprimé
+        "403":
+          description: Suppression d'un message d'un autre utilisateur interdite
+
+  /api/messages/{id}/receipt:
+    post:
+      tags: [Messages]
+      summary: Acquitter la réception d'un message (lu/reçu)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/MessageID"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [received, read]
+      responses:
+        "200":
+          description: Accusé de réception enregistré
+
+  # ── Groups ────────────────────────────────────────────────────────────────
+  /api/groups:
+    post:
+      tags: [Groups]
+      summary: Créer un groupe de conversation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                memberIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "201":
+          description: Groupe créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+    get:
+      tags: [Groups]
+      summary: Lister les groupes de l'utilisateur connecté
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Liste des groupes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Group"
+
+  /api/groups/{id}:
+    get:
+      tags: [Groups]
+      summary: Détails d'un groupe
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GroupID"
+      responses:
+        "200":
+          description: Détails du groupe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Groups]
+      summary: Supprimer un groupe (admin uniquement)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GroupID"
+      responses:
+        "204":
+          description: Groupe supprimé
+
+  /api/groups/{id}/leave:
+    post:
+      tags: [Groups]
+      summary: Quitter un groupe
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GroupID"
+      responses:
+        "200":
+          description: Groupe quitté
+
+  /api/groups/{id}/members:
+    get:
+      tags: [Groups]
+      summary: Lister les membres d'un groupe
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GroupID"
+      responses:
+        "200":
+          description: Liste des membres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupMember"
+    post:
+      tags: [Groups]
+      summary: Ajouter un membre au groupe
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GroupID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId:
+                  type: string
+      responses:
+        "201":
+          description: Membre ajouté
+
+  /api/groups/{id}/members/{user_id}/role:
+    patch:
+      tags: [Groups]
+      summary: Modifier le rôle d'un membre
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GroupID"
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [member, admin]
+      responses:
+        "200":
+          description: Rôle mis à jour
+
+  /api/groups/{id}/members/{user_id}:
+    delete:
+      tags: [Groups]
+      summary: Retirer un membre du groupe
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/GroupID"
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Membre retiré
+
+  # ── Media ─────────────────────────────────────────────────────────────────
+  /media/upload:
+    post:
+      tags: [Media]
+      summary: Uploader un fichier (image ou vidéo)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Fichier à uploader (max 50 MB)
+      responses:
+        "200":
+          description: Fichier uploadé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "400":
+          description: Type MIME non autorisé ou fichier trop volumineux
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /media/{key}:
+    get:
+      tags: [Media]
+      summary: Récupérer un média par sa clé (redirection vers MinIO/Blob)
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Clé du fichier (ex. media/1714000000_photo.jpg)
+      responses:
+        "307":
+          description: Redirection temporaire vers l'URL de stockage
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  # ── WebSocket ─────────────────────────────────────────────────────────────
+  /ws:
+    get:
+      tags: [WebSocket]
+      summary: Upgrade HTTP → WebSocket (connexion temps-réel)
+      description: |
+        Établit une connexion WebSocket persistante. Une fois connecté, le serveur
+        pousse les événements en temps-réel.
+
+        **Messages serveur → client :**
+        ```json
+        { "type": "new_message", "payload": { ...ChatMessage } }
+        { "type": "message_receipt", "payload": { "messageId": "...", "status": "read" } }
+        { "type": "user_online",  "payload": { "userId": "..." } }
+        { "type": "user_offline", "payload": { "userId": "..." } }
+        ```
+
+        **Messages client → serveur :**
+        _Le client envoie des messages via HTTP REST, pas via le WebSocket._
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Access token JWT (alternative au header Authorization)
+      responses:
+        "101":
+          description: Switching Protocols — connexion WebSocket établie
+        "401":
+          description: Token manquant ou invalide
+        "503":
+          description: Service d'authentification indisponible
+
+  # ── System ────────────────────────────────────────────────────────────────
+  /health:
+    get:
+      tags: [System]
+      summary: Health check du Gateway
+      responses:
+        "200":
+          description: Service opérationnel
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+
+  /metrics:
+    get:
+      tags: [System]
+      summary: Métriques Prometheus (format text/plain)
+      description: Exposé pour le scraping Prometheus. Contient connexions WS actives, latence, throughput.
+      responses:
+        "200":
+          description: Métriques au format Prometheus text exposition
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT RS256, durée 15 min. Obtenu via POST /auth/login.
+
+  parameters:
+    UserID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: UUID de l'utilisateur
+    MessageID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: UUID du message
+    GroupID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: UUID du groupe / conversation
+
+  responses:
+    BadRequest:
+      description: Données de la requête invalides
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Token JWT manquant ou expiré
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    RegisterDto:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    LoginDto:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthTokens:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT RS256, valide 15 minutes
+        refresh_token:
+          type: string
+          description: Token de renouvellement, valide 7 jours
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+
+    UpdateUserDto:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+
+    SendMessageDto:
+      type: object
+      required: [content]
+      properties:
+        conversationId:
+          type: string
+          description: ID de la conversation directe (exclusif avec groupId)
+        groupId:
+          type: string
+          description: ID du groupe (exclusif avec conversationId)
+        content:
+          type: string
+          maxLength: 4096
+        type:
+          type: string
+          enum: [text, image, video, file]
+          default: text
+        replyToId:
+          type: string
+          description: ID du message auquel on répond (optionnel)
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+        senderId:
+          type: string
+          format: uuid
+        senderUsername:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [text, image, video, file]
+        replyToId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [sent, received, read]
+
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        memberCount:
+          type: integer
+
+    GroupMember:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        role:
+          type: string
+          enum: [member, admin]
+        joinedAt:
+          type: string
+          format: date-time
+
+    UploadResponse:
+      type: object
+      properties:
+        mediaId:
+          type: string
+          description: Clé unique du fichier dans le bucket
+        key:
+          type: string
+        url:
+          type: string
+          format: uri
+          description: URL publique du fichier (MinIO ou Azure Blob)
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        statusCode:
+          type: integer

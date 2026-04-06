@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -11,11 +13,17 @@ import (
 
 const maxUploadSize = 50 << 20 // 50 MB
 
-type MediaHandler struct {
-	service *service.MediaService
+// MediaServiceIface abstracts the media service for testability.
+type MediaServiceIface interface {
+	UploadFromReader(ctx context.Context, filename, contentType string, reader io.Reader) (service.UploadResponse, error)
+	GetURL(mediaID string) (string, error)
 }
 
-func NewMediaHandler(svc *service.MediaService) *MediaHandler {
+type MediaHandler struct {
+	service MediaServiceIface
+}
+
+func NewMediaHandler(svc MediaServiceIface) *MediaHandler {
 	return &MediaHandler{service: svc}
 }
 

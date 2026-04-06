@@ -19,7 +19,7 @@ metadata:
   name: storm-ws-500k-messages
   namespace: k6
 spec:
-  parallelism: 3
+  parallelism: 20
   script:
     configMap:
       name: storm-ws-messages-script
@@ -31,14 +31,14 @@ spec:
     serviceAccountName: k6-runner
     resources:
       requests:
-        cpu: "200m"
+        cpu: "500m"
         memory: "512Mi"
       limits:
-        cpu: "500m"
+        cpu: "1"
         memory: "1Gi"
     env:
       - name: K6_VUS
-        value: "6000"
+        value: "10000"
       # 5 msg/s × 2000 VUs × 50 pods = 500 000 msg/s
       - name: K6_MSG_RATE
         value: "5"

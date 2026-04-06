@@ -990,6 +990,9 @@ func mapConversationError(err error) string {
 }
 
 func (h *Handler) respondProto(msg *nats.Msg, response proto.Message) {
+	if msg.Reply == "" {
+		return // fire-and-forget publish, pas de reply attendu
+	}
 	data, err := proto.Marshal(response)
 	if err != nil {
 		log.Printf("marshal response: %v", err)

@@ -109,70 +109,24 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reply, err := h.nc.Request(subjectNewMessage, data, requestTimeout)
-	if err != nil {
-		respondJSON(w, http.StatusBadGateway, models.SendMessageResponse{
-			OK:    false,
-			Error: &models.SendMessageError{Code: "GATEWAY_ERROR", Message: "message-service unreachable: " + err.Error()},
-		})
-		return
-	}
+	// Réponse immédiate au client — le publish NATS se fait en arrière-plan
+	respondJSON(w, http.StatusAccepted, models.SendMessageResponse{OK: true})
 
-	var resp apiv1.SendMessageResponse
-	if err := proto.Unmarshal(reply.Data, &resp); err != nil {
-		respondJSON(w, http.StatusBadGateway, models.SendMessageResponse{
-			OK:    false,
-			Error: &models.SendMessageError{Code: "GATEWAY_ERROR", Message: "invalid response from message-service"},
-		})
-		return
-	}
-
-	out := models.SendMessageResponse{OK: resp.GetOk()}
-	if resp.GetData() != nil {
-		out.Data = toSendMessageData(resp.GetData())
-	}
-	if resp.GetError() != nil {
-		out.Error = &models.SendMessageError{
-			Code:    resp.GetError().GetCode(),
-			Message: resp.GetError().GetMessage(),
-		}
-	}
-
-	status := http.StatusOK
-	if !resp.GetOk() && resp.GetError() != nil {
-		status = statusFromServiceCode(resp.GetError().GetCode(), http.StatusUnprocessableEntity)
-	}
-
-	// Broadcast temps réel via NATS pour notifier les clients WebSocket (inclut reply_to pour affichage citation sans resync).
-	if resp.GetOk() && resp.GetData() != nil {
-		room := "conversation:" + strconv.Itoa(conversationID)
-		d := resp.GetData()
-		mid := int(d.GetId())
+	// Fire-and-forget dans une goroutine pour ne jamais bloquer le handler
+	room := "conversation:" + strconv.Itoa(conversationID)
+	go func() {
+		_ = h.nc.Publish(subjectNewMessage, data)
 		broadcast := models.InputMessage{
-			Action:    models.WSActionMessage,
-			Room:      room,
-			User:      actor.ID,
-			Username:  actor.Username,
-			Content:   req.Content,
-			ID:        mid,
-			MessageID: strconv.Itoa(mid),
-		}
-		if rto := d.GetReplyTo(); rto != nil && rto.GetId() != 0 {
-			rid := int(rto.GetId())
-			broadcast.ReplyToID = &rid
-			broadcast.ReplyTo = &models.ReplyToData{
-				ID:         rid,
-				SenderID:   rto.GetSenderId(),
-				SenderName: h.fetchUsername(rto.GetSenderId()),
-				Content:    rto.GetContent(),
-			}
+			Action:   models.WSActionMessage,
+			Room:     room,
+			User:     actor.ID,
+			Username: actor.Username,
+			Content:  req.Content,
 		}
 		if payload, err := json.Marshal(broadcast); err == nil {
 			_ = h.nc.Publish("message.broadcast."+room, payload)
 		}
-	}
-
-	respondJSON(w, status, out)
+	}()
 }
 
 // GetById gère GET /api/messages/{id} - id = int (PK row)

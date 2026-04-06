@@ -18,7 +18,7 @@ metadata:
   name: storm-ws-100k-connections
   namespace: k6
 spec:
-  parallelism: 48
+  parallelism: 40
   script:
     configMap:
       name: storm-ws-connections-script
